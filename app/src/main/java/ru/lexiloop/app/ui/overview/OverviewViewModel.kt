@@ -3,7 +3,6 @@ package ru.lexiloop.app.ui.overview
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -12,61 +11,48 @@ import ru.lexiloop.app.data.api.OverviewResponse
 import ru.lexiloop.app.data.api.PoolDto
 import ru.lexiloop.app.data.repo.ApiResult
 import ru.lexiloop.app.data.repo.ContentRepository
-import ru.lexiloop.app.data.repo.PoolSelection
+import ru.lexiloop.app.data.repo.PoolStore
+import ru.lexiloop.app.data.repo.ToastBus
 import javax.inject.Inject
 
 data class OverviewUiState(
     val loading: Boolean = true,
-    val refreshing: Boolean = false,
-    val error: String? = null,
     val stats: OverviewResponse? = null,
-    val pools: List<PoolDto> = emptyList(),
-    val selectedPoolId: Int? = null,
 )
 
 @HiltViewModel
 class OverviewViewModel @Inject constructor(
     private val repository: ContentRepository,
-    private val poolSelection: PoolSelection,
+    private val poolStore: PoolStore,
+    private val toastBus: ToastBus,
 ) : ViewModel() {
+
+    val pools: StateFlow<List<PoolDto>> = poolStore.pools
 
     private val _state = MutableStateFlow(OverviewUiState())
     val state: StateFlow<OverviewUiState> = _state
 
     init {
         refresh()
-        viewModelScope.launch {
-            poolSelection.selected.collect { pool ->
-                _state.update { it.copy(selectedPoolId = pool?.id) }
-            }
-        }
     }
 
     fun refresh() {
-        _state.update { it.copy(refreshing = true, error = null) }
         viewModelScope.launch {
-            val statsDeferred = async { repository.overview() }
-            val poolsDeferred = async { repository.pools() }
-            val stats = statsDeferred.await()
-            val pools = poolsDeferred.await()
-            _state.update { current ->
-                var next = current.copy(loading = false, refreshing = false)
-                when (stats) {
-                    is ApiResult.Success -> next = next.copy(stats = stats.data)
-                    is ApiResult.Error -> next = next.copy(error = stats.message)
+            when (val result = repository.overview()) {
+                is ApiResult.Success -> _state.update { it.copy(loading = false, stats = result.data) }
+                is ApiResult.Error -> {
+                    _state.update { it.copy(loading = false) }
+                    toastBus.error(result.message)
                 }
-                when (pools) {
-                    is ApiResult.Success -> next = next.copy(pools = pools.data)
-                    is ApiResult.Error -> if (next.error == null) {
-                        next = next.copy(error = pools.message)
-                    }
-                }
-                next
+            }
+            when (val pools = repository.pools()) {
+                is ApiResult.Success -> poolStore.setPools(pools.data)
+                is ApiResult.Error -> Unit // the me/pools shell load already reported
             }
         }
     }
 
-    fun selectPool(pool: PoolDto?) {
-        poolSelection.select(pool)
+    fun selectPool(id: Int) {
+        poolStore.select(id)
     }
 }

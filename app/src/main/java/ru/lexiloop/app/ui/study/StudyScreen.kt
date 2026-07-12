@@ -1,9 +1,11 @@
 package ru.lexiloop.app.ui.study
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -13,369 +15,646 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.animation.animateColorAsState
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import ru.lexiloop.app.data.api.FlashcardDto
 import ru.lexiloop.app.data.api.JudgeResponse
-import ru.lexiloop.app.data.api.NextCardResponse
 import ru.lexiloop.app.data.repo.CardImages
-import ru.lexiloop.app.ui.common.ErrorBanner
+import ru.lexiloop.app.ui.components.ButtonKind
+import ru.lexiloop.app.ui.components.EmptyState
+import ru.lexiloop.app.ui.components.LexiButton
+import ru.lexiloop.app.ui.components.LexiTextArea
+import ru.lexiloop.app.ui.components.LoaderView
+import ru.lexiloop.app.ui.components.ProgressTrack
+import ru.lexiloop.app.ui.components.StatusPill
+import ru.lexiloop.app.ui.pagePadding
+import ru.lexiloop.app.ui.theme.LocalPalette
+import ru.lexiloop.app.ui.theme.Manrope
 
-private fun directionTitle(direction: String?): String = when (direction) {
-    "definition_to_term" -> "Write the word"
-    "term_to_sentence" -> "Write a sentence with this word"
-    else -> "Write the definition"
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
+    val p = LocalPalette.current
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val padding = pagePadding()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text("Study")
-                        state.poolName?.let {
-                            Text(
-                                it,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.secondary,
-                            )
-                        }
-                    }
-                },
-                actions = {
-                    FilterChip(
-                        selected = state.practiceMode,
-                        onClick = { viewModel.setPracticeMode(!state.practiceMode) },
-                        label = { Text("Practice") },
-                    )
-                    Spacer(Modifier.size(12.dp))
-                },
-            )
-        },
-    ) { innerPadding ->
-        when {
-            state.loading -> Box(
-                Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center,
-            ) {
-                CircularProgressIndicator()
+    if (state.loading && state.session == null) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            LoaderView("Choosing the right card…")
+        }
+        return
+    }
+
+    val card = state.card
+    if (card == null || state.loading) {
+        if (state.loading) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                LoaderView("Choosing the right card…")
             }
-
-            state.round?.card == null -> EmptyQueue(
-                message = state.emptyMessage ?: "Nothing to study right now.",
-                error = state.error,
-                onReload = viewModel::loadNext,
-                padding = innerPadding,
-            )
-
-            else -> StudyContent(
-                state = state,
-                viewModel = viewModel,
-                padding = innerPadding,
-            )
+            return
         }
-    }
-}
-
-@Composable
-private fun EmptyQueue(
-    message: String,
-    error: String?,
-    onReload: () -> Unit,
-    padding: PaddingValues,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(padding)
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        error?.let {
-            ErrorBanner(it)
-            Spacer(Modifier.height(16.dp))
+        // .center-stage empty state with practice actions
+        val practiceComplete = state.practiceMode && state.session?.practiceComplete == true
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .wrapContentSize(Alignment.Center),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(15.dp),
+        ) {
+            EmptyState(
+                icon = if (practiceComplete) Icons.Filled.Refresh else Icons.Filled.Check,
+                title = if (practiceComplete) "Practice round complete" else "You are caught up",
+                text = state.session?.message ?: "No cards are due right now.",
+            )
+            if (state.practiceMode) {
+                LexiButton("Practice again", leadingIcon = Icons.Filled.Refresh, onClick = viewModel::startPractice, modifier = Modifier.fillMaxWidth())
+                LexiButton("Return to due reviews", kind = ButtonKind.Secondary, onClick = viewModel::returnToDue, modifier = Modifier.fillMaxWidth())
+            } else {
+                LexiButton("Practice all cards now", leadingIcon = Icons.Filled.Refresh, onClick = viewModel::startPractice, modifier = Modifier.fillMaxWidth())
+                LexiButton("Check due cards", kind = ButtonKind.Secondary, onClick = viewModel::reload, modifier = Modifier.fillMaxWidth())
+            }
         }
-        Text(
-            message,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.secondary,
-        )
-        Spacer(Modifier.height(16.dp))
-        OutlinedButton(onClick = onReload) { Text("Reload") }
+        return
     }
-}
 
-@Composable
-private fun StudyContent(
-    state: StudyUiState,
-    viewModel: StudyViewModel,
-    padding: PaddingValues,
-) {
-    val round = state.round ?: return
-    val card = round.card ?: return
+    val session = state.session ?: return
+    val judge = state.judge
+    val answered = judge != null || state.revealed
+
+    // .study-card border color mirrors correct/wrong state
+    val cardBorder by animateColorAsState(
+        targetValue = when {
+            judge?.accepted == true -> p.green.copy(alpha = 0.72f)
+            judge != null -> p.red.copy(alpha = 0.68f)
+            else -> p.border
+        },
+        label = "cardBorder",
+    )
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(padding)
             .verticalScroll(rememberScrollState())
             .imePadding()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+            .padding(padding),
     ) {
-        QueueInfo(round)
-        state.error?.let { ErrorBanner(it) }
+        // .study-progress
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    (if (state.practiceMode) "PRACTICE ROUND" else "DUE REVIEW ROUND"),
+                    fontSize = 11.sp,
+                    letterSpacing = 0.8.sp,
+                    fontWeight = FontWeight.W700,
+                    color = p.muted,
+                )
+                Text(
+                    "${state.roundCompleted} done · ${state.remaining} left" +
+                        if (state.practiceMode) " in this pool" else "",
+                    fontSize = 9.sp,
+                    color = p.muted2,
+                )
+            }
+            // .practice-switch
+            Text(
+                if (state.practiceMode) "Due reviews" else "Practice all",
+                modifier = Modifier
+                    .clip(RoundedCornerShape(9.dp))
+                    .background(p.surface, RoundedCornerShape(9.dp))
+                    .border(1.dp, p.border, RoundedCornerShape(9.dp))
+                    .clickable { if (state.practiceMode) viewModel.returnToDue() else viewModel.startPractice() }
+                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.W700,
+                color = p.muted,
+            )
+        }
+        Spacer(Modifier.height(7.dp))
+        ProgressTrack(progress = state.progress)
+        val breakdown = session.queueBreakdown
+        if (!state.practiceMode && breakdown != null && state.remaining > 0) {
+            Spacer(Modifier.height(7.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                if (breakdown.new > 0) QueueChip("${breakdown.new} new", p.blue)
+                if (breakdown.learning > 0) QueueChip("${breakdown.learning} learning", p.orange)
+                if (breakdown.review > 0) QueueChip("${breakdown.review} review", p.green)
+            }
+        }
+        Spacer(Modifier.height(18.dp))
 
-        PromptCard(round, card, state, onPronounce = viewModel::pronounce)
+        // .study-card
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .background(p.surface, RoundedCornerShape(18.dp))
+                .border(1.dp, cardBorder, RoundedCornerShape(18.dp)),
+        ) {
+            // .card-topline
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(58.dp)
+                    .padding(horizontal = 20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    when (state.direction) {
+                        "definition_to_term" -> "RECALL THE WORD"
+                        "term_to_sentence" -> "USE THIS WORD IN A SENTENCE"
+                        else -> "EXPLAIN THIS WORD"
+                    },
+                    modifier = Modifier.weight(1f),
+                    fontSize = 11.sp,
+                    letterSpacing = 0.9.sp,
+                    fontWeight = FontWeight.W600,
+                    color = p.muted,
+                )
+                StatusPill(
+                    if (state.practiceMode) "practice" else card.schedule?.state ?: "new",
+                    color = p.muted,
+                    background = p.surface3,
+                )
+            }
+            Box(Modifier.fillMaxWidth().height(1.dp).background(p.border))
 
-        if (state.phase == StudyPhase.Feedback) {
-            state.judge?.let { JudgeCard(it) }
-            state.review?.let { review ->
-                if (review.automaticRatingLabel.isNotEmpty() && !review.practice) {
-                    AssistChip(
-                        onClick = {},
-                        label = { Text("Rated: ${review.automaticRatingLabel}") },
+            // .study-prompt
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 34.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                if (session.showImages && card.hasImage) {
+                    AsyncImage(
+                        model = CardImages.imageUrl(card),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(16f / 9f)
+                            .clip(RoundedCornerShape(14.dp)),
+                    )
+                    Spacer(Modifier.height(20.dp))
+                }
+                Text(
+                    session.prompt.orEmpty(),
+                    fontFamily = Manrope,
+                    fontSize = if (state.showsTerm) 32.sp else 22.sp,
+                    lineHeight = if (state.showsTerm) 38.sp else 30.sp,
+                    fontWeight = FontWeight.W700,
+                    color = p.text,
+                    textAlign = TextAlign.Center,
+                )
+                if (state.showsTerm && card.ipa.isNotEmpty()) {
+                    Spacer(Modifier.height(10.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("/${card.ipa}/", fontSize = 15.sp, color = p.muted)
+                        Icon(
+                            Icons.AutoMirrored.Filled.VolumeUp,
+                            contentDescription = "Pronounce",
+                            tint = p.primary2,
+                            modifier = Modifier
+                                .size(22.dp)
+                                .clickable { viewModel.pronounce(card.term) },
+                        )
+                    }
+                }
+                if (state.showsTerm && card.partOfSpeech.isNotEmpty()) {
+                    Spacer(Modifier.height(13.dp))
+                    PosTag(card.partOfSpeech)
+                }
+                if (!state.showsTerm) {
+                    Spacer(Modifier.height(24.dp))
+                    RecallHints(
+                        card = card,
+                        revealed = state.hintLetters,
+                        onReveal = viewModel::revealHintLetter,
                     )
                 }
             }
-            if (state.revealed) {
-                AnswerCard(card)
-            }
-            Button(
-                onClick = viewModel::loadNext,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Next")
-            }
-        } else {
-            OutlinedTextField(
-                value = state.answer,
-                onValueChange = viewModel::onAnswerChange,
-                label = { Text(directionTitle(round.direction)) },
-                minLines = if (round.direction == "definition_to_term") 1 else 3,
-                enabled = state.phase == StudyPhase.Answering,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(
-                    onClick = viewModel::checkAnswer,
-                    enabled = state.phase == StudyPhase.Answering && state.answer.isNotBlank(),
-                    modifier = Modifier.weight(1f),
-                ) {
-                    if (state.phase == StudyPhase.Checking) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary,
+
+            if (!answered) {
+                // .answer-area
+                Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
+                    Text(
+                        when (state.direction) {
+                            "definition_to_term" -> "Type the English word or accepted phrase"
+                            "term_to_sentence" -> "Write one sentence using this word"
+                            else -> "Write the meaning in your own words"
+                        },
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.W600,
+                        color = p.muted,
+                    )
+                    Spacer(Modifier.height(7.dp))
+                    LexiTextArea(
+                        value = state.answer,
+                        onValueChange = viewModel::onAnswerChange,
+                        placeholder = when (state.direction) {
+                            "definition_to_term" -> "Your answer…"
+                            "term_to_sentence" -> "Any natural sentence that shows the meaning…"
+                            else -> "A clear paraphrase is enough…"
+                        },
+                        minHeight = 115,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        LexiButton(
+                            "Show answer",
+                            kind = ButtonKind.Ghost,
+                            onClick = viewModel::showAnswer,
+                            enabled = !state.busy,
+                            modifier = Modifier.weight(1f),
                         )
-                    } else {
-                        Text("Check answer")
+                        LexiButton(
+                            if (state.busy) "Checking…" else "Check answer",
+                            onClick = viewModel::checkAnswer,
+                            enabled = !state.busy && state.answer.isNotBlank(),
+                            modifier = Modifier.weight(1f),
+                        )
                     }
                 }
-                OutlinedButton(
-                    onClick = viewModel::showAnswer,
-                    enabled = state.phase == StudyPhase.Answering,
-                    modifier = Modifier.weight(1f),
+            } else {
+                // .result-area
+                judge?.let { JudgeBanner(it) }
+                AnswerReveal(card = card, judge = judge, onPronounce = { viewModel.pronounce(card.term) })
+                // .next-block
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 19.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("Show answer")
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(Icons.Filled.Schedule, contentDescription = null, tint = p.primary2, modifier = Modifier.size(16.dp))
+                        Text(
+                            when {
+                                judge != null -> humanDuration(state.responseMs ?: 0)
+                                state.reviewed -> "Saved"
+                                else -> "Answer revealed"
+                            } + if (state.practiceMode) " · Practice" else "",
+                            fontSize = 12.sp,
+                            color = p.muted,
+                        )
+                    }
+                    LexiButton(
+                        if (state.busy) "Loading…" else "Next task",
+                        trailingIcon = Icons.AutoMirrored.Filled.ArrowForward,
+                        onClick = viewModel::next,
+                        enabled = !state.busy,
+                    )
                 }
             }
+        }
+
+        Spacer(Modifier.height(13.dp))
+        // Block-card action (replaces the desktop ⌘− shortcut)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(9.dp))
+                .clickable(enabled = !state.busy) { viewModel.suspendCurrent() }
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Filled.Block, contentDescription = null, tint = p.muted2, modifier = Modifier.size(14.dp))
+            Text("Block this card from future study", fontSize = 11.sp, color = p.muted2)
         }
     }
 }
 
 @Composable
-private fun QueueInfo(round: NextCardResponse) {
-    val text = if (round.mode == "practice") {
-        "Practice · ${round.roundCompleted}/${round.roundTotal}"
-    } else {
-        val b = round.queueBreakdown
-        buildString {
-            append("${round.queueCount} in queue")
-            if (b != null) append(" · new ${b.new} · learning ${b.learning} · review ${b.review}")
-        }
-    }
+private fun QueueChip(text: String, color: androidx.compose.ui.graphics.Color) {
     Text(
         text,
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.secondary,
+        modifier = Modifier
+            .background(color.copy(alpha = 0.12f), CircleShape)
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+        fontSize = 9.sp,
+        fontWeight = FontWeight.W700,
+        color = color,
     )
 }
 
 @Composable
-private fun PromptCard(
-    round: NextCardResponse,
-    card: FlashcardDto,
-    state: StudyUiState,
-    onPronounce: () -> Unit,
-) {
-    val showTerm = round.direction != "definition_to_term"
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        ),
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (round.showImages && card.hasImage) {
-                AsyncImage(
-                    model = CardImages.imageUrl(card),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(16f / 9f)
-                        .clip(RoundedCornerShape(12.dp)),
-                )
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    round.prompt.orEmpty(),
-                    style = MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier.weight(1f),
-                )
-                if (showTerm) {
-                    IconButton(onClick = onPronounce) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.VolumeUp,
-                            contentDescription = "Pronounce",
-                        )
-                    }
-                }
-            }
-            if (showTerm) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (card.ipa.isNotEmpty()) {
-                        Text(
-                            card.ipa,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.secondary,
-                        )
-                    }
-                    if (card.partOfSpeech.isNotEmpty()) {
-                        Text(
-                            card.partOfSpeech,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontStyle = FontStyle.Italic,
-                            color = MaterialTheme.colorScheme.secondary,
-                        )
-                    }
-                }
-            }
-        }
-    }
+private fun PosTag(text: String) {
+    val p = LocalPalette.current
+    Text(
+        text.uppercase(),
+        modifier = Modifier
+            .border(1.dp, p.border2, RoundedCornerShape(6.dp))
+            .padding(horizontal = 6.dp, vertical = 3.dp),
+        fontSize = 9.sp,
+        letterSpacing = 0.6.sp,
+        color = p.muted,
+    )
 }
 
+/** .recall-hints: masked examples, collocations, and the letter-hint button. */
 @Composable
-private fun JudgeCard(judge: JudgeResponse) {
-    val positive = judge.accepted
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = if (positive) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.errorContainer
-            },
-        ),
+private fun RecallHints(card: FlashcardDto, revealed: Int, onReveal: () -> Unit) {
+    val p = LocalPalette.current
+    val examples = card.exampleSentences().take(3)
+        .map { Recall.maskAnswer(it.sentence, card) }
+        .filter { it.contains("_____") }
+    val collocations = card.collocations.take(3)
+        .map { Recall.maskAnswer(it, card) }
+        .filter { it.contains("_____") }
+    val total = Recall.letterCount(card.term)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(p.surface2.copy(alpha = 0.82f), RoundedCornerShape(14.dp))
+            .border(1.dp, p.border, RoundedCornerShape(14.dp))
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(13.dp),
     ) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(Icons.Filled.HelpOutline, contentDescription = null, tint = p.primary2, modifier = Modifier.size(16.dp))
+            Text("Context clues", fontSize = 12.sp, fontWeight = FontWeight.W700, color = p.text)
             Text(
-                if (positive) "Accepted · score ${judge.score}/7" else "Not accepted · score ${judge.score}/7",
-                style = MaterialTheme.typography.titleMedium,
+                card.partOfSpeech.ifEmpty { "English term" },
+                modifier = Modifier
+                    .background(p.surface3, CircleShape)
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                fontSize = 10.sp,
+                color = p.muted,
             )
-            if (judge.feedback.isNotEmpty()) {
-                Text(judge.feedback, style = MaterialTheme.typography.bodyMedium)
+        }
+        // .letter-hint
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(9.dp))
+                .border(1.dp, p.border2, RoundedCornerShape(9.dp))
+                .clickable(enabled = revealed < total, onClick = onReveal)
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                Recall.maskedTerm(card.term, revealed),
+                fontFamily = FontFamily.Monospace,
+                fontSize = 13.sp,
+                color = p.text,
+            )
+            Text("$revealed/$total", fontSize = 9.sp, color = p.muted2)
+        }
+        if (examples.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                examples.forEachIndexed { index, sentence ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Box(
+                            Modifier
+                                .size(22.dp)
+                                .background(p.primary.copy(alpha = 0.12f), RoundedCornerShape(7.dp)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text("${index + 1}", fontSize = 10.sp, fontWeight = FontWeight.W700, color = p.primary2)
+                        }
+                        Text(sentence, fontSize = 14.sp, lineHeight = 21.sp, color = p.text, modifier = Modifier.weight(1f))
+                    }
+                }
             }
-            if (judge.missingOrWrongConcepts.isNotEmpty()) {
-                Text(
-                    "Missing or wrong: ${judge.missingOrWrongConcepts.joinToString(", ")}",
-                    style = MaterialTheme.typography.bodySmall,
-                )
+        }
+        if (collocations.isNotEmpty()) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Common use", fontSize = 11.sp, color = p.muted)
+                collocations.forEach { collocation ->
+                    Text(
+                        collocation,
+                        modifier = Modifier
+                            .background(p.surface, RoundedCornerShape(8.dp))
+                            .border(1.dp, p.border, RoundedCornerShape(8.dp))
+                            .padding(horizontal = 9.dp, vertical = 5.dp),
+                        fontSize = 12.sp,
+                        color = p.text,
+                    )
+                }
             }
+        }
+        if (examples.isEmpty() && collocations.isEmpty()) {
+            Text(
+                "Think of the word that best matches this definition and its grammatical role.",
+                fontSize = 13.sp,
+                color = p.muted,
+            )
+        }
+        if (revealed > 0) {
+            val share = revealed.toFloat() / maxOf(1, total)
+            Text(
+                when {
+                    share > 0.4f -> "More than 40% revealed: this review counts as Again."
+                    share > 0.2f -> "More than 20% revealed: the rating is capped at Hard."
+                    else -> "A letter hint was used: the rating is capped at Good."
+                },
+                fontSize = 10.sp,
+                color = p.orange,
+            )
         }
     }
 }
 
+/** .judge-banner with the score orb. */
 @Composable
-private fun AnswerCard(card: FlashcardDto) {
-    Card {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(card.term, style = MaterialTheme.typography.titleLarge)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (card.ipa.isNotEmpty()) {
-                    Text(
-                        card.ipa,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.secondary,
-                    )
-                }
-                if (card.partOfSpeech.isNotEmpty()) {
-                    Text(
-                        card.partOfSpeech,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontStyle = FontStyle.Italic,
-                        color = MaterialTheme.colorScheme.secondary,
+private fun JudgeBanner(judge: JudgeResponse) {
+    val p = LocalPalette.current
+    val accepted = judge.accepted
+    val binary = judge.grading == "binary"
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(if (accepted) p.greenBg.copy(alpha = 0.35f) else p.redBg.copy(alpha = 0.30f)),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            // .score-orb
+            Box(
+                Modifier
+                    .size(48.dp)
+                    .background(p.surface3, RoundedCornerShape(14.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                when {
+                    binary && accepted -> Icon(Icons.Filled.Check, contentDescription = null, tint = p.green, modifier = Modifier.size(24.dp))
+                    binary -> Icon(Icons.Filled.Close, contentDescription = null, tint = p.red, modifier = Modifier.size(24.dp))
+                    else -> Text(
+                        "${judge.score}",
+                        fontFamily = Manrope,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.W800,
+                        color = p.primary2,
                     )
                 }
             }
-            Text(card.definition, style = MaterialTheme.typography.bodyLarge)
-            val examples = card.exampleSentences()
-            if (examples.isNotEmpty()) {
+            Column {
                 Text(
-                    "Examples",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
+                    when {
+                        accepted -> "Correct"
+                        binary -> "Incorrect"
+                        else -> humanVerdict(judge.verdict)
+                    },
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.W700,
+                    color = p.text,
                 )
-                examples.take(3).forEach { example ->
-                    Text(
-                        "• ${example.sentence}",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                val feedback = distinctFeedback(judge)
+                if (feedback.isNotEmpty()) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(feedback, fontSize = 13.sp, lineHeight = 19.sp, color = p.muted)
                 }
-            }
-            if (card.synonyms.isNotEmpty()) {
-                Text(
-                    "Synonyms: ${card.synonyms.joinToString(", ")}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.secondary,
-                )
             }
         }
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(if (accepted) p.green.copy(alpha = 0.38f) else p.red.copy(alpha = 0.35f)),
+        )
     }
+}
+
+/** .answer-reveal: term, pronounce, definition, example blockquotes, chips. */
+@Composable
+private fun AnswerReveal(card: FlashcardDto, judge: JudgeResponse?, onPronounce: () -> Unit) {
+    val p = LocalPalette.current
+    val tint = when {
+        judge?.accepted == true -> p.greenBg.copy(alpha = 0.20f)
+        judge != null -> p.redBg.copy(alpha = 0.18f)
+        else -> androidx.compose.ui.graphics.Color.Transparent
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(p.surface2)
+            .background(tint)
+            .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(13.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    card.term,
+                    fontFamily = Manrope,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.W700,
+                    color = p.text,
+                )
+                if (card.ipa.isNotEmpty()) {
+                    Text("/${card.ipa}/", fontSize = 13.sp, color = p.muted)
+                }
+            }
+            // .answer-audio
+            Box(
+                Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(p.surface, RoundedCornerShape(10.dp))
+                    .border(1.dp, p.border, RoundedCornerShape(10.dp))
+                    .clickable(onClick = onPronounce),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = "Pronounce", tint = p.primary2, modifier = Modifier.size(17.dp))
+            }
+        }
+        Text(
+            card.definition,
+            fontSize = 15.sp,
+            lineHeight = 25.sp,
+            fontWeight = FontWeight.W500,
+            color = p.text,
+        )
+        val examples = card.exampleSentences().take(3)
+        if (examples.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                examples.forEach { example ->
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .background(p.surface.copy(alpha = 0.54f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 12.dp, vertical = 9.dp),
+                    ) {
+                        Text("“${example.sentence}”", fontSize = 13.sp, lineHeight = 20.sp, color = p.text)
+                        if (example.note.isNotEmpty()) {
+                            Text(example.note, fontSize = 11.sp, color = p.muted, modifier = Modifier.padding(top = 4.dp))
+                        }
+                    }
+                }
+            }
+        }
+        val chips = card.synonyms.take(4) + card.collocations.take(3)
+        if (chips.isNotEmpty()) {
+            ru.lexiloop.app.ui.components.ChipRow(chips)
+        }
+    }
+}
+
+private fun humanVerdict(verdict: String): String =
+    verdict.split('_').joinToString(" ") { part ->
+        part.replaceFirstChar { it.uppercase() }
+    }
+
+private fun distinctFeedback(judge: JudgeResponse): String {
+    val title = (if (judge.accepted) "correct" else if (judge.grading == "binary") "incorrect" else humanVerdict(judge.verdict))
+        .lowercase().trimEnd('.', '!', '?').trim()
+    val feedback = judge.feedback.lowercase().trimEnd('.', '!', '?').trim()
+    val generic = setOf("correct", "right", "exact", "incorrect", "wrong")
+    return if (feedback.isEmpty() || feedback == title || feedback in generic) "" else judge.feedback
+}
+
+private fun humanDuration(milliseconds: Long): String {
+    val seconds = maxOf(0L, Math.round(milliseconds / 1000.0))
+    if (seconds < 60) return "${seconds}s"
+    val minutes = seconds / 60
+    val rest = seconds % 60
+    return if (rest > 0) "${minutes}m ${rest}s" else "${minutes}m"
 }

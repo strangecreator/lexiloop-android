@@ -6,7 +6,6 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonPrimitive
 
 @Serializable
 data class AuthRequest(
@@ -40,6 +39,19 @@ data class PoolDto(
 )
 
 @Serializable
+data class PoolWriteBody(
+    val name: String? = null,
+    val description: String? = null,
+    val accent: String? = null,
+)
+
+@Serializable
+data class PoolTransferBody(
+    @SerialName("target_pool") val targetPool: Int,
+    val mode: String, // copy | move
+)
+
+@Serializable
 data class ScheduleDto(
     val state: String = "new",
     @SerialName("due_at") val dueAt: String? = null,
@@ -60,9 +72,10 @@ data class FlashcardDto(
     val ipa: String = "",
     @SerialName("short_definition") val shortDefinition: String = "",
     val definition: String = "",
-    // Kept loose on purpose: items are {"sentence": …, "note": …} objects, but
-    // legacy rows may hold bare strings. See [exampleSentences].
+    // Items are {"sentence": …, "note": …} objects, but legacy rows may hold
+    // bare strings. See [exampleSentences].
     val examples: List<JsonElement> = emptyList(),
+    val forms: JsonObject? = null,
     val synonyms: List<String> = emptyList(),
     val antonyms: List<String> = emptyList(),
     val collocations: List<String> = emptyList(),
@@ -81,15 +94,49 @@ data class FlashcardDto(
                 val note = (element["note"] as? JsonPrimitive)?.contentOrNull?.trim().orEmpty()
                 if (sentence.isEmpty()) null else CardExample(sentence, note)
             }
-            is JsonPrimitive -> element.jsonPrimitive.contentOrNull?.trim()
+            is JsonPrimitive -> element.contentOrNull?.trim()
                 ?.takeIf { it.isNotEmpty() }
                 ?.let { CardExample(it, "") }
             else -> null
         }
     }
+
+    /** "key: value" word forms, tolerant of non-string values. */
+    fun formEntries(): List<Pair<String, String>> = forms
+        ?.mapNotNull { (key, value) ->
+            val text = (value as? JsonPrimitive)?.contentOrNull?.trim().orEmpty()
+            if (text.isEmpty()) null else key to text
+        }
+        ?: emptyList()
 }
 
 data class CardExample(val sentence: String, val note: String)
+
+@Serializable
+data class ExampleBody(val sentence: String, val note: String = "")
+
+@Serializable
+data class CardWriteBody(
+    val pool: Int,
+    val term: String,
+    @SerialName("part_of_speech") val partOfSpeech: String = "",
+    val ipa: String = "",
+    @SerialName("short_definition") val shortDefinition: String = "",
+    val definition: String,
+    val examples: List<ExampleBody> = emptyList(),
+    val forms: Map<String, String> = emptyMap(),
+    val synonyms: List<String> = emptyList(),
+    val antonyms: List<String> = emptyList(),
+    val collocations: List<String> = emptyList(),
+    val aliases: List<String> = emptyList(),
+    @SerialName("usage_notes") val usageNotes: String = "",
+)
+
+@Serializable
+data class GenerateBody(val pool: Int, val term: String)
+
+@Serializable
+data class ImageLinkBody(val url: String)
 
 @Serializable
 data class QueueBreakdownDto(
@@ -117,6 +164,10 @@ data class NextCardResponse(
 data class JudgeRequest(
     val answer: String,
     val direction: String,
+    @SerialName("response_ms") val responseMs: Long = 0,
+    val practice: Boolean = false,
+    @SerialName("hint_revealed_letters") val hintRevealedLetters: Int = 0,
+    @SerialName("hint_total_letters") val hintTotalLetters: Int = 0,
 )
 
 @Serializable
@@ -128,6 +179,8 @@ data class JudgeResponse(
     @SerialName("matched_concepts") val matchedConcepts: List<String> = emptyList(),
     @SerialName("missing_or_wrong_concepts") val missingOrWrongConcepts: List<String> = emptyList(),
     val accepted: Boolean = false,
+    // Since v1.13 the judge endpoint saves the review in the same request.
+    @SerialName("review_recorded") val reviewRecorded: Boolean = false,
 )
 
 @Serializable
@@ -179,18 +232,209 @@ data class OverviewResponse(
     val activity: List<ActivityDayDto> = emptyList(),
 )
 
+// --- Settings (mirrors the ProfileSerializer field list) ---
+
 @Serializable
-data class ProfileDto(
+data class SettingsDto(
     val theme: String = "system",
-    @SerialName("accent_color") val accentColor: String = "",
+    @SerialName("accent_color") val accentColor: String = "emerald",
     @SerialName("study_directions") val studyDirections: List<String> = emptyList(),
     @SerialName("generation_model") val generationModel: String = "",
+    @SerialName("has_generation_token") val hasGenerationToken: Boolean = false,
     @SerialName("judge_model") val judgeModel: String = "",
-    @SerialName("daily_new_limit") val dailyNewLimit: Int = 0,
+    @SerialName("has_judge_token") val hasJudgeToken: Boolean = false,
+    @SerialName("image_model") val imageModel: String = "",
+    @SerialName("has_image_token") val hasImageToken: Boolean = false,
+    @SerialName("show_card_images") val showCardImages: Boolean = true,
+    @SerialName("show_images_term_to_definition") val showImagesTermToDefinition: Boolean = true,
+    @SerialName("show_images_definition_to_term") val showImagesDefinitionToTerm: Boolean = true,
+    @SerialName("image_prefetch_count") val imagePrefetchCount: Int = 2,
+    @SerialName("token_status") val tokenStatus: Map<String, Boolean> = emptyMap(),
+    @SerialName("judge_acceptance_score") val judgeAcceptanceScore: Int = 5,
+    @SerialName("sentence_judge_model") val sentenceJudgeModel: String = "",
+    @SerialName("has_sentence_token") val hasSentenceToken: Boolean = false,
+    @SerialName("sentence_acceptance_score") val sentenceAcceptanceScore: Int = 5,
+    @SerialName("daily_new_limit") val dailyNewLimit: Int = 20,
+    @SerialName("learning_steps_minutes") val learningStepsMinutes: List<Double> = listOf(1.0, 10.0),
+    @SerialName("relearning_steps_minutes") val relearningStepsMinutes: List<Double> = listOf(10.0),
+    @SerialName("graduating_interval_days") val graduatingIntervalDays: Double = 1.0,
+    @SerialName("easy_interval_days") val easyIntervalDays: Double = 4.0,
+    @SerialName("easy_bonus") val easyBonus: Double = 1.3,
+    @SerialName("hard_multiplier") val hardMultiplier: Double = 1.2,
+    @SerialName("lapse_multiplier") val lapseMultiplier: Double = 0.5,
+    @SerialName("minimum_ease") val minimumEase: Double = 1.3,
+    @SerialName("term_to_definition_easy_seconds") val termToDefinitionEasySeconds: Int = 12,
+    @SerialName("term_to_definition_good_seconds") val termToDefinitionGoodSeconds: Int = 35,
+    @SerialName("definition_to_term_easy_seconds") val definitionToTermEasySeconds: Int = 6,
+    @SerialName("definition_to_term_good_seconds") val definitionToTermGoodSeconds: Int = 18,
+    @SerialName("term_to_sentence_easy_seconds") val termToSentenceEasySeconds: Int = 20,
+    @SerialName("term_to_sentence_good_seconds") val termToSentenceGoodSeconds: Int = 60,
 )
+
+/** Writable subset sent by the Settings page; read-only fields stay out. */
+@Serializable
+data class SettingsWriteBody(
+    val theme: String,
+    @SerialName("accent_color") val accentColor: String,
+    @SerialName("study_directions") val studyDirections: List<String>,
+    @SerialName("generation_model") val generationModel: String,
+    @SerialName("judge_model") val judgeModel: String,
+    @SerialName("image_model") val imageModel: String,
+    @SerialName("show_card_images") val showCardImages: Boolean,
+    @SerialName("show_images_term_to_definition") val showImagesTermToDefinition: Boolean,
+    @SerialName("show_images_definition_to_term") val showImagesDefinitionToTerm: Boolean,
+    @SerialName("image_prefetch_count") val imagePrefetchCount: Int,
+    @SerialName("judge_acceptance_score") val judgeAcceptanceScore: Int,
+    @SerialName("sentence_judge_model") val sentenceJudgeModel: String,
+    @SerialName("sentence_acceptance_score") val sentenceAcceptanceScore: Int,
+    @SerialName("daily_new_limit") val dailyNewLimit: Int,
+    @SerialName("learning_steps_minutes") val learningStepsMinutes: List<Double>,
+    @SerialName("relearning_steps_minutes") val relearningStepsMinutes: List<Double>,
+    @SerialName("graduating_interval_days") val graduatingIntervalDays: Double,
+    @SerialName("easy_interval_days") val easyIntervalDays: Double,
+    @SerialName("easy_bonus") val easyBonus: Double,
+    @SerialName("hard_multiplier") val hardMultiplier: Double,
+    @SerialName("lapse_multiplier") val lapseMultiplier: Double,
+    @SerialName("minimum_ease") val minimumEase: Double,
+    @SerialName("term_to_definition_easy_seconds") val termToDefinitionEasySeconds: Int,
+    @SerialName("term_to_definition_good_seconds") val termToDefinitionGoodSeconds: Int,
+    @SerialName("definition_to_term_easy_seconds") val definitionToTermEasySeconds: Int,
+    @SerialName("definition_to_term_good_seconds") val definitionToTermGoodSeconds: Int,
+    @SerialName("term_to_sentence_easy_seconds") val termToSentenceEasySeconds: Int,
+    @SerialName("term_to_sentence_good_seconds") val termToSentenceGoodSeconds: Int,
+    // A non-empty string replaces the provider key, "" removes it, absent keys
+    // stay untouched. Null means "no key changes staged".
+    @SerialName("provider_tokens") val providerTokens: Map<String, String>? = null,
+)
+
+@Serializable
+data class ThemePatchBody(val theme: String)
 
 @Serializable
 data class MeResponse(
     val username: String,
-    val settings: ProfileDto? = null,
+    val settings: SettingsDto? = null,
 )
+
+// --- Model catalog ---
+
+@Serializable
+data class ModelOption(
+    val id: String,
+    val label: String = "",
+    val provider: String = "",
+    val description: String = "",
+    val badge: String = "",
+    @SerialName("key_url") val keyUrl: String = "",
+    @SerialName("token_label") val tokenLabel: String = "",
+    @SerialName("token_provider") val tokenProvider: String = "",
+    @SerialName("recommended_for") val recommendedFor: List<String> = emptyList(),
+)
+
+@Serializable
+data class ModelsResponse(val models: List<ModelOption> = emptyList())
+
+// --- Analytics ---
+
+@Serializable
+data class AnalyticsTotals(
+    val cost: Double = 0.0,
+    val tokens: Long = 0,
+    val calls: Int = 0,
+    @SerialName("average_latency") val averageLatency: Double = 0.0,
+)
+
+@Serializable
+data class AnalyticsDaily(
+    val day: String = "",
+    val cost: Double = 0.0,
+    val tokens: Long = 0,
+    val calls: Int = 0,
+)
+
+@Serializable
+data class AnalyticsPoolRow(
+    @SerialName("pool_id") val poolId: Int? = null,
+    @SerialName("pool__name") val poolName: String = "",
+    val accent: String = "",
+    val cost: Double = 0.0,
+    val tokens: Long = 0,
+    val calls: Int = 0,
+)
+
+@Serializable
+data class AnalyticsFailure(
+    val id: Int = 0,
+    val operation: String = "",
+    val model: String = "",
+    val error: String = "",
+    @SerialName("created_at") val createdAt: String = "",
+)
+
+@Serializable
+data class AnalyticsResponse(
+    val daily: List<AnalyticsDaily> = emptyList(),
+    @SerialName("by_pool") val byPool: List<AnalyticsPoolRow> = emptyList(),
+    val totals: AnalyticsTotals = AnalyticsTotals(),
+    val failures: List<AnalyticsFailure> = emptyList(),
+)
+
+// --- Bulk generation ---
+
+@Serializable
+data class NormalizeBody(val terms: String)
+
+@Serializable
+data class NormalizeChange(
+    val source: String = "",
+    val normalized: String = "",
+    val status: String = "",
+)
+
+@Serializable
+data class NormalizeError(
+    val term: String = "",
+    val normalized: String? = null,
+    val error: String = "",
+)
+
+@Serializable
+data class NormalizeResponse(
+    val normalized: List<String> = emptyList(),
+    val changes: List<NormalizeChange> = emptyList(),
+    val errors: List<NormalizeError> = emptyList(),
+    @SerialName("input_count") val inputCount: Int = 0,
+)
+
+@Serializable
+data class BulkStartBody(
+    val pool: Int,
+    val terms: List<String>,
+    @SerialName("batch_size") val batchSize: Int,
+)
+
+@Serializable
+data class BulkFailedTerm(
+    val term: String = "",
+    val error: String = "",
+    val attempts: Int = 0,
+)
+
+@Serializable
+data class BulkJob(
+    val id: String,
+    val status: String = "queued",
+    @SerialName("created_count") val createdCount: Int = 0,
+    @SerialName("skipped_count") val skippedCount: Int = 0,
+    @SerialName("failed_count") val failedCount: Int = 0,
+    @SerialName("processed_count") val processedCount: Int = 0,
+    @SerialName("total_count") val totalCount: Int = 0,
+    val progress: Double = 0.0,
+    @SerialName("current_round") val currentRound: Int = 0,
+    @SerialName("max_rounds") val maxRounds: Int = 0,
+    val error: String = "",
+    @SerialName("failed_terms") val failedTerms: List<BulkFailedTerm> = emptyList(),
+    @SerialName("updated_at") val updatedAt: String = "",
+) {
+    val isActive: Boolean get() = status == "queued" || status == "running"
+}

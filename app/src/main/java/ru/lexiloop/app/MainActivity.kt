@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.StateFlow
 import ru.lexiloop.app.data.auth.SessionManager
 import ru.lexiloop.app.data.auth.SessionState
 import ru.lexiloop.app.ui.AppRoot
-import ru.lexiloop.app.ui.theme.LexiLoopTheme
 import javax.inject.Inject
 
 @HiltViewModel
@@ -34,9 +33,7 @@ class MainActivity : ComponentActivity() {
         splash.setKeepOnScreenCondition { viewModel.session.value is SessionState.Loading }
         enableEdgeToEdge()
         setContent {
-            LexiLoopTheme {
-                AppRoot()
-            }
+            AppRoot()
         }
     }
 }
