@@ -1,48 +1,79 @@
 # LexiLoop for Android
 
 Native Android client for [lexiloop.ru](https://lexiloop.ru) — AI-assisted English
-vocabulary flashcards with spaced repetition.
+vocabulary flashcards with spaced repetition. The UI is a faithful native
+replica of the site's mobile design: same palette, fonts, components, and
+flows, built entirely in Jetpack Compose (no WebViews).
 
-## Features (v0.1)
+## Design fidelity
 
-- **Sign in / sign up** against the LexiLoop backend (DRF token auth).
-- **Overview** — due counter, daily reviews, streak, retention, and your pools
-  with per-pool due badges. Selecting a pool scopes Study and Library to it.
-- **Study** — due queue and practice mode, all three task types
-  (word → definition, definition → word, word → sentence), LLM-graded answers
-  with feedback, "show answer" reveal, card images, and term pronunciation (TTS).
-- **Library** — infinite-scroll card list with server-side search, expandable
-  card details, block/unblock, and delete.
-- **Settings** — account info, study preferences read from the server, sign out.
+The design system is translated 1:1 from the web app's `styles.css`:
+
+- **Palette** — the exact dark (`#0a0b0f` background, surface/border ladder)
+  and light themes, plus all seven user-selectable accent colors (emerald,
+  blue, teal, indigo, violet, rose, orange). Theme and accent follow the
+  server-side settings, like on the site.
+- **Typography** — DM Sans body + Manrope display (bundled variable fonts),
+  matching web weights and letter-spacing.
+- **Components** — panels, badges, eyebrows, stat cards, status pills, pool
+  dots, score orb, judge banners, queue chips, toasts, and the modal style all
+  mirror their CSS counterparts.
+- **Shell** — the site's off-canvas sidebar is the navigation drawer: brand
+  row, nav links with the due badge, pool list with actions (rename + color,
+  copy, merge, delete), theme switch, user chip.
+
+## Features
+
+- **Auth** — the site's tabbed sign-in/sign-up card with the violet-gradient
+  brand mark.
+- **Overview** — hero panel with streak badge, retention ring, stat grid,
+  GitHub-style vertical activity heatmap (absolute thresholds), pool cards.
+- **Study** — due/practice rounds with progress track and queue-composition
+  chips, all three task types, recall context clues with the letter-hint
+  button and masked examples, LLM judge banner with score orb, tinted answer
+  reveal with examples and chips, response-time display, card blocking,
+  card images, TTS pronunciation.
+- **Library** — the AI generator panel, server-side search, expandable card
+  details (definition, examples, forms, synonyms, collocations, usage notes),
+  block/unblock/edit/delete, pagination, full manual card editor, and the
+  two-stage Bulk AI modal with live durable-job progress and failure report.
+- **AI usage** — cost stat grid, daily spend chart, by-pool breakdown,
+  recent failures / healthy state.
+- **Settings** — the complete web settings form: generation/judge/sentence/
+  image model pickers with catalog cards, per-provider API keys with staged
+  edits (save/remove/undo), acceptance-score sliders, task types, appearance
+  and interface-color picker, daily new cards, automatic review timing bands,
+  and the advanced scheduler tuning section.
 
 ## Architecture
 
 Single-module Kotlin app, MVVM with unidirectional data flow:
 
 ```
-ui/        Jetpack Compose (Material 3) screens + ViewModels (StateFlow)
-data/api/  Retrofit interface + kotlinx.serialization DTOs
-data/auth/ SessionManager (DataStore-persisted token) + OkHttp auth interceptor
-data/repo/ Repositories returning ApiResult<T> with parsed DRF error messages
-di/        Hilt modules (OkHttp, Retrofit, Json, DataStore, app scope)
+ui/theme/      LexiPalette (styles.css tokens), fonts, LexiTheme
+ui/components/ The shared component vocabulary (buttons, fields, modals, …)
+ui/shell/      ShellViewModel (pages, pools, settings, toasts) + sidebar
+ui/…           One package per page: auth, overview, study, library,
+               analytics, settings
+data/api/      Retrofit interface + kotlinx.serialization DTOs
+data/auth/     SessionManager (DataStore-persisted token) + auth interceptor
+data/repo/     ContentRepository, shared stores (pools/settings/toasts)
+di/            Hilt modules (OkHttp, Retrofit, Json, DataStore, app scope)
 ```
 
 Key choices:
 
-- **Jetpack Compose + Material 3** with dynamic color (Android 12+) and full
-  dark-theme support; edge-to-edge with the splash-screen API.
-- **Hilt** for dependency injection, **KSP** for annotation processing.
 - **Retrofit + OkHttp + kotlinx.serialization** — tolerant JSON decoding
   (`ignoreUnknownKeys`, `coerceInputValues`) so backend additions never crash
-  older app versions.
+  older app versions; DRF error payloads are parsed into readable messages.
 - **Coil** shares the authenticated OkHttp client, so protected card images and
   their `image_key` cache-busting work out of the box, backed by a 128 MB disk
   cache.
 - **DataStore** holds the auth token; it is excluded from Android cloud backups
   and device transfers.
 - **Performance**: immutable UI state data classes, `LazyColumn` with stable
-  keys, debounced server-side search, incremental paging, R8 minification +
-  resource shrinking for release builds.
+  keys, debounced server-side search, R8 minification + resource shrinking for
+  release builds.
 
 ## Backend API
 
