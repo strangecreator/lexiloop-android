@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -396,10 +397,14 @@ fun ActivityHeatmap(rows: List<ActivityDayDto>) {
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         // Weekday header
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Box(Modifier.width(40.dp))
             listOf("M", "T", "W", "T", "F", "S", "S").forEach { label ->
-                Box(Modifier.size(17.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                     Text(label, fontSize = 10.sp, fontWeight = FontWeight.W800, color = p.muted2)
                 }
             }
@@ -414,16 +419,24 @@ fun ActivityHeatmap(rows: List<ActivityDayDto>) {
             }
             if (label.isNotEmpty() && label == lastLabel) label = ""
             if (label.isNotEmpty()) lastLabel = label
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Box(Modifier.width(40.dp), contentAlignment = Alignment.CenterEnd) {
                     Text(label, fontSize = 10.sp, color = p.muted, modifier = Modifier.padding(end = 6.dp))
                 }
                 week.forEach { (_, count) ->
                     Box(
                         Modifier
-                            .size(15.dp)
+                            .weight(1f)
+                            .aspectRatio(1f)
                             .background(cellColor(level(count)), RoundedCornerShape(4.dp)),
                     )
+                }
+                repeat(7 - week.size) {
+                    Box(Modifier.weight(1f).aspectRatio(1f))
                 }
             }
         }

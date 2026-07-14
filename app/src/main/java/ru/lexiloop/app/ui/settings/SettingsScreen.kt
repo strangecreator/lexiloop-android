@@ -21,6 +21,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Key
@@ -38,6 +39,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -82,8 +84,6 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 icon = Icons.Filled.AutoAwesome,
                 title = "Flashcard generation",
                 subtitle = "Choose a public model. LexiLoop handles the router identifier internally.",
-                status = if (form.hasGenerationToken) "Key saved" else "Key required",
-                statusOk = form.hasGenerationToken,
             ) {
                 SettingsField("Generation model") {
                     ModelPicker(
@@ -116,8 +116,6 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 icon = Icons.Filled.Psychology,
                 title = "Definition judge",
                 subtitle = "Use a fast, inexpensive model independently from generation.",
-                status = if (form.hasJudgeToken) "Key saved" else "Key required",
-                statusOk = form.hasJudgeToken,
             ) {
                 SettingsField("Judge model") {
                     ModelPicker(
@@ -156,8 +154,6 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 icon = Icons.Filled.Edit,
                 title = "Sentence judge",
                 subtitle = "Grades the Word → sentence task: does the sentence use the word correctly and naturally?",
-                status = if (form.hasSentenceToken) "Key saved" else "Key required",
-                statusOk = form.hasSentenceToken,
             ) {
                 SettingsField("Sentence judge model", "Sentences are graded on a fixed 1–7 usage rubric. Uses the provider key saved above.") {
                     LexiSelect(
@@ -182,8 +178,6 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 icon = Icons.Filled.Image,
                 title = "Card images",
                 subtitle = "An optional picture appears on the flashcard during study.",
-                status = if (form.hasImageToken) "Key saved" else "Key required",
-                statusOk = form.hasImageToken,
             ) {
                 SettingsField("Image assistant model", "Reads a pasted page link and points at the right image file when a plain download fails.") {
                     LexiSelect(
@@ -211,6 +205,9 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                     LexiCheckRow(form.showImagesDefinitionToTerm, { checked ->
                         viewModel.patch { it.copy(showImagesDefinitionToTerm = checked) }
                     }, "Definition → word tasks", "a picture can hint at the answer — turn off for stricter recall")
+                    LexiCheckRow(form.showImagesTermToSentence, { checked ->
+                        viewModel.patch { it.copy(showImagesTermToSentence = checked) }
+                    }, "Word → sentence tasks")
                 }
                 SettingsField("Prefetch upcoming images", "How many of the next flashcards' images load in advance during study. 0 disables prefetching.") {
                     NumberInput(
@@ -392,6 +389,45 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             }
         }
 
+        // Text size (device-local)
+        item(key = "textsize") {
+            val fontScale by viewModel.fontScale.collectAsStateWithLifecycle()
+            SettingsSection(
+                icon = Icons.Filled.FormatSize,
+                title = "Text size",
+                subtitle = "Stored on this device only and applied immediately.",
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ru.lexiloop.app.data.repo.DevicePrefs.TEXT_SCALES.forEachIndexed { index, (label, value) ->
+                        val active = kotlin.math.abs(fontScale - value) < 0.01f
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(p.surface2, RoundedCornerShape(12.dp))
+                                .border(
+                                    width = if (active) 2.dp else 1.dp,
+                                    color = if (active) p.primary else p.border,
+                                    shape = RoundedCornerShape(12.dp),
+                                )
+                                .clickable { viewModel.setFontScale(value) }
+                                .padding(vertical = 12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Text(
+                                "Aa",
+                                fontSize = (14 + index * 3).sp,
+                                fontWeight = FontWeight.W800,
+                                color = if (active) p.primary2 else p.text,
+                            )
+                            Text(label, fontSize = 11.sp, color = p.muted, maxLines = 1)
+                        }
+                    }
+                }
+            }
+        }
+
         // Automatic review timing
         item(key = "timing") {
             SettingsSection(
@@ -515,7 +551,7 @@ private fun SettingsSection(
             .fillMaxWidth()
             .clip(shape)
             .background(p.surface, shape)
-            .border(1.dp, p.border, shape),
+            .border(1.dp, lerp(p.border, p.primary, 0.45f), shape),
     ) {
         Row(
             modifier = Modifier
@@ -585,7 +621,7 @@ private fun ScoreSlider(label: String, hint: String, value: Int, onValue: (Int) 
         }
         Slider(
             value = value.toFloat(),
-            onValueChange = { onValue(it.toInt().coerceIn(1, 7)) },
+            onValueChange = { onValue(kotlin.math.round(it).toInt().coerceIn(1, 7)) },
             valueRange = 1f..7f,
             steps = 5,
             colors = SliderDefaults.colors(

@@ -34,6 +34,7 @@ data class StudyUiState(
     val roundCompleted: Int = 0,
     val roundTotal: Int = 0,
     val responseMs: Long? = null,
+    val offline: Boolean = false,
 ) {
     val card: FlashcardDto? get() = session?.card
     val direction: String get() = session?.direction ?: "term_to_definition"
@@ -97,6 +98,8 @@ class StudyViewModel @Inject constructor(
     private val poolStore: PoolStore,
     private val player: PronunciationPlayer,
     private val toastBus: ToastBus,
+    private val offlineCache: ru.lexiloop.app.data.offline.OfflineCache,
+    private val networkMonitor: ru.lexiloop.app.data.offline.NetworkMonitor,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(StudyUiState())
@@ -134,38 +137,165 @@ class StudyViewModel @Inject constructor(
         viewModelScope.launch {
             val excluded = if (due) emptyList() else practiceSeen.toList()
             when (val result = repository.nextCard(observedPoolId, mode, excluded)) {
-                is ApiResult.Success -> {
-                    shownAt = SystemClock.elapsedRealtime()
-                    val data = result.data
-                    _state.update { current ->
-                        val completed: Int
-                        val total: Int
-                        if (!due) {
-                            completed = data.roundCompleted.takeIf { it > 0 } ?: excluded.size
-                            total = data.roundTotal.takeIf { it > 0 }
-                                ?: maxOf(excluded.size + data.queueCount, 0)
-                        } else {
-                            completed = if (resetRound) 0 else current.roundCompleted
-                            total = when {
-                                adjustedTotal != null -> maxOf(adjustedTotal, completed + data.queueCount)
-                                resetRound -> data.queueCount
-                                else -> maxOf(current.roundTotal, completed + data.queueCount)
-                            }
-                        }
-                        current.copy(
-                            loading = false,
-                            session = data,
-                            roundCompleted = completed,
-                            roundTotal = total,
-                        )
-                    }
-                }
+                is ApiResult.Success -> applySession(result.data, due, resetRound, adjustedTotal, offline = false)
                 is ApiResult.Error -> {
-                    _state.update { it.copy(loading = false) }
-                    toastBus.error(result.message)
+                    val fallback = if (result.code == null) offlineSession(due, excluded) else null
+                    if (fallback != null) {
+                        applySession(fallback, due, resetRound, adjustedTotal, offline = true)
+                    } else {
+                        _state.update { it.copy(loading = false) }
+                        toastBus.error(result.message)
+                    }
                 }
             }
         }
+    }
+
+    private fun applySession(
+        data: NextCardResponse,
+        due: Boolean,
+        resetRound: Boolean,
+        adjustedTotal: Int?,
+        offline: Boolean,
+    ) {
+        shownAt = SystemClock.elapsedRealtime()
+        _state.update { current ->
+            val completed: Int
+            val total: Int
+            if (!due) {
+                completed = data.roundCompleted.takeIf { it > 0 } ?: practiceSeen.size
+                total = data.roundTotal.takeIf { it > 0 }
+                    ?: maxOf(practiceSeen.size + data.queueCount, 0)
+            } else {
+                completed = if (resetRound) 0 else current.roundCompleted
+                total = when {
+                    adjustedTotal != null -> maxOf(adjustedTotal, completed + data.queueCount)
+                    resetRound -> data.queueCount
+                    else -> maxOf(current.roundTotal, completed + data.queueCount)
+                }
+            }
+            current.copy(
+                loading = false,
+                session = data,
+                roundCompleted = completed,
+                roundTotal = total,
+                offline = offline,
+            )
+        }
+    }
+
+    /**
+     * Builds a Definition → word session from the local card cache. Cards
+     * whose offline reviews are still queued stay out of the due queue.
+     */
+    private suspend fun offlineSession(due: Boolean, excluded: List<Int>): NextCardResponse? {
+        val poolId = observedPoolId ?: return null
+        val cards = offlineCache.loadCards(poolId) ?: return null
+        val pendingIds = offlineCache.pendingReviews()
+            .filter { !it.request.practice }
+            .map { it.cardId }
+            .toSet()
+        val available = cards.filter { !it.suspended }
+        val now = System.currentTimeMillis()
+
+        fun dueAtMillis(card: FlashcardDto): Long? =
+            card.schedule?.dueAt?.let(::parseInstantMillis)
+
+        fun isNew(card: FlashcardDto): Boolean =
+            card.schedule == null || card.schedule.state == "new"
+
+        val queue = if (due) {
+            available
+                .filter { card ->
+                    card.id !in pendingIds && (isNew(card) || (dueAtMillis(card)?.let { it <= now } ?: false))
+                }
+                .sortedWith(
+                    compareBy(
+                        { if (isNew(it)) 1 else 0 },
+                        { dueAtMillis(it) ?: Long.MAX_VALUE },
+                    ),
+                )
+        } else {
+            available.filterNot { it.id in excluded }
+        }
+        val card = queue.firstOrNull()
+        return NextCardResponse(
+            card = card,
+            direction = "definition_to_term",
+            mode = if (due) "due" else "practice",
+            message = if (card == null && due) "No cached cards are due right now." else null,
+            practiceComplete = !due && card == null,
+            queueCount = queue.size,
+            queueBreakdown = ru.lexiloop.app.data.api.QueueBreakdownDto(
+                new = queue.count { isNew(it) },
+                learning = queue.count { it.schedule?.state == "learning" || it.schedule?.state == "relearning" },
+                review = queue.count { it.schedule?.state == "review" },
+            ),
+            showImages = false,
+        )
+    }
+
+    private fun parseInstantMillis(value: String): Long? = runCatching {
+        java.time.OffsetDateTime.parse(value).toInstant().toEpochMilli()
+    }.recoverCatching {
+        java.time.Instant.parse(value).toEpochMilli()
+    }.getOrNull()
+
+    /** Exact-match answer check used when the LLM judge is unreachable. */
+    private fun offlineAnswerMatches(card: FlashcardDto, answer: String): Boolean {
+        fun normalize(value: String): String = value.trim().lowercase()
+            .replace(Regex("^to\\s+"), "")
+            .replace(Regex("\\s+"), " ")
+        val target = normalize(answer)
+        if (target.isEmpty()) return false
+        val candidates = (listOf(card.term) + card.aliases + card.formEntries().map { it.second })
+            .map(::normalize)
+        return target in candidates
+    }
+
+    private suspend fun enqueueOfflineReview(
+        card: FlashcardDto,
+        judged: JudgeResponse?,
+        measured: Long,
+        current: StudyUiState,
+    ) {
+        offlineCache.enqueueReview(
+            ru.lexiloop.app.data.offline.PendingReview(
+                id = java.util.UUID.randomUUID().toString(),
+                cardId = card.id,
+                request = ReviewRequest(
+                    direction = current.direction,
+                    answer = current.answer,
+                    accepted = judged?.accepted ?: false,
+                    judgeScore = null,
+                    judgeVerdict = judged?.verdict.orEmpty(),
+                    feedback = judged?.feedback.orEmpty(),
+                    responseMs = measured,
+                    practice = current.practiceMode,
+                    hintRevealedLetters = current.hintLetters,
+                    hintTotalLetters = Recall.letterCount(card.term),
+                ),
+                queuedAt = System.currentTimeMillis(),
+            ),
+        )
+    }
+
+    private suspend fun offlineCheck(card: FlashcardDto, current: StudyUiState, measured: Long) {
+        val accepted = offlineAnswerMatches(card, current.answer)
+        val judged = JudgeResponse(
+            grading = "binary",
+            verdict = if (accepted) "correct" else "incorrect",
+            feedback = if (accepted) {
+                "Correct — matched offline against the expected word. Progress will sync when you're back online."
+            } else {
+                "That doesn't match the expected word (checked offline). Progress will sync when you're back online."
+            },
+            accepted = accepted,
+            reviewRecorded = false,
+        )
+        enqueueOfflineReview(card, judged, measured, current)
+        markReviewed(card.id)
+        _state.update { it.copy(busy = false, judge = judged, offline = true) }
     }
 
     fun onAnswerChange(value: String) = _state.update { it.copy(answer = value) }
@@ -187,6 +317,17 @@ class StudyViewModel @Inject constructor(
         val measured = current.responseMs ?: elapsed()
         _state.update { it.copy(busy = true, responseMs = measured) }
         viewModelScope.launch {
+            // Offline: definition -> word answers are checked by exact match.
+            if (current.offline || !networkMonitor.online.value) {
+                if (current.direction == "definition_to_term") {
+                    offlineCheck(card, current, measured)
+                } else {
+                    _state.update { it.copy(busy = false) }
+                    toastBus.error("You're offline — switching to Definition → word study.")
+                    load(due = !current.practiceMode)
+                }
+                return@launch
+            }
             val request = JudgeRequest(
                 answer = current.answer,
                 direction = current.direction,
@@ -208,8 +349,16 @@ class StudyViewModel @Inject constructor(
                     }
                 }
                 is ApiResult.Error -> {
-                    _state.update { it.copy(busy = false) }
-                    toastBus.error(result.message)
+                    if (result.code == null && current.direction == "definition_to_term") {
+                        offlineCheck(card, current, measured)
+                    } else if (result.code == null) {
+                        _state.update { it.copy(busy = false) }
+                        toastBus.error("You're offline — switching to Definition → word study.")
+                        load(due = !current.practiceMode)
+                    } else {
+                        _state.update { it.copy(busy = false) }
+                        toastBus.error(result.message)
+                    }
                 }
             }
         }
@@ -231,6 +380,11 @@ class StudyViewModel @Inject constructor(
     private suspend fun recordReview(card: FlashcardDto, judged: JudgeResponse?, measured: Long): Boolean {
         if (_state.value.reviewed) return true
         val current = _state.value
+        if (current.offline || !networkMonitor.online.value) {
+            enqueueOfflineReview(card, judged, measured, current)
+            markReviewed(card.id)
+            return true
+        }
         val request = ReviewRequest(
             direction = current.direction,
             answer = current.answer,
@@ -254,8 +408,15 @@ class StudyViewModel @Inject constructor(
                 true
             }
             is ApiResult.Error -> {
-                toastBus.error(result.message)
-                false
+                if (result.code == null) {
+                    // The connection dropped mid-review: keep the result locally.
+                    enqueueOfflineReview(card, judged, measured, current)
+                    markReviewed(card.id)
+                    true
+                } else {
+                    toastBus.error(result.message)
+                    false
+                }
             }
         }
     }

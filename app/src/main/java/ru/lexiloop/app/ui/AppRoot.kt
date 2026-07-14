@@ -57,8 +57,9 @@ import ru.lexiloop.app.ui.theme.LocalPalette
 fun AppRoot(shell: ShellViewModel = hiltViewModel()) {
     val session by shell.session.collectAsStateWithLifecycle()
     val settings by shell.settings.collectAsStateWithLifecycle()
+    val fontScale by shell.fontScale.collectAsStateWithLifecycle()
 
-    LexiTheme(theme = settings.theme, accent = settings.accentColor) {
+    LexiTheme(theme = settings.theme, accent = settings.accentColor, fontScale = fontScale) {
         when (session) {
             is SessionState.Loading -> Unit // system splash is still on screen
             is SessionState.LoggedOut -> AuthScreen()

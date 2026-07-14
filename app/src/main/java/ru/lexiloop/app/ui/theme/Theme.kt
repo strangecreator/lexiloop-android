@@ -9,6 +9,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -168,6 +170,7 @@ private fun typography(text: Color): Typography {
 fun LexiTheme(
     theme: String, // dark | light | system
     accent: String,
+    fontScale: Float = 1f,
     content: @Composable () -> Unit,
 ) {
     val dark = when (theme) {
@@ -203,7 +206,11 @@ fun LexiTheme(
             error = palette.red,
         )
     }
-    CompositionLocalProvider(LocalPalette provides palette) {
+    val baseDensity = LocalDensity.current
+    CompositionLocalProvider(
+        LocalPalette provides palette,
+        LocalDensity provides Density(baseDensity.density, baseDensity.fontScale * fontScale),
+    ) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography = typography(palette.text),

@@ -44,9 +44,13 @@ class ShellViewModel @Inject constructor(
     val poolStore: PoolStore,
     val settingsStore: SettingsStore,
     val toastBus: ToastBus,
+    devicePrefs: ru.lexiloop.app.data.repo.DevicePrefs,
+    private val syncManager: ru.lexiloop.app.data.offline.SyncManager,
+    private val offlineCache: ru.lexiloop.app.data.offline.OfflineCache,
 ) : ViewModel() {
 
     val session: StateFlow<SessionState> = sessionManager.state
+    val fontScale: StateFlow<Float> = devicePrefs.fontScale
     val settings: StateFlow<SettingsDto> = settingsStore.settings
     val pools: StateFlow<List<PoolDto>> = poolStore.pools
     val activePoolId: StateFlow<Int?> = poolStore.activePoolId
@@ -61,6 +65,7 @@ class ShellViewModel @Inject constructor(
     val toast: StateFlow<ToastEvent?> = _toast
 
     init {
+        syncManager.start()
         viewModelScope.launch {
             session.collect { if (it is SessionState.LoggedIn) loadShell() }
         }
@@ -114,10 +119,16 @@ class ShellViewModel @Inject constructor(
             else -> systemDark
         }
         val next = if (effectiveDark) "light" else "dark"
+        // Apply instantly; the server PATCH follows in the background.
+        val previous = settings.value
+        settingsStore.update(previous.copy(theme = next))
         viewModelScope.launch {
             when (val result = repository.patchTheme(next)) {
                 is ApiResult.Success -> settingsStore.update(result.data)
-                is ApiResult.Error -> toastBus.error(result.message)
+                is ApiResult.Error -> {
+                    settingsStore.update(previous)
+                    toastBus.error(result.message)
+                }
             }
         }
     }
@@ -125,6 +136,7 @@ class ShellViewModel @Inject constructor(
     fun signOut() {
         viewModelScope.launch {
             authRepository.logout()
+            offlineCache.clearAll()
             _page.value = LexiPage.Home
             _state.value = ShellUiState()
         }

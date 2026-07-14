@@ -28,33 +28,93 @@ import ru.lexiloop.app.data.api.ReviewResponse
 import ru.lexiloop.app.data.api.SettingsDto
 import ru.lexiloop.app.data.api.SettingsWriteBody
 import ru.lexiloop.app.data.api.ThemePatchBody
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.jsonObject
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class ContentRepository @Inject constructor(
     private val api: LexiLoopApi,
+    private val cache: ru.lexiloop.app.data.offline.OfflineCache,
+    private val json: kotlinx.serialization.json.Json,
 ) {
-    suspend fun me(): ApiResult<MeResponse> = safeApi { api.me() }
+    suspend fun me(): ApiResult<MeResponse> =
+        withCache({ api.me() }, { cache.saveMe(it) }, { cache.loadMe() })
 
-    suspend fun overview(): ApiResult<OverviewResponse> = safeApi { api.overview() }
+    suspend fun overview(): ApiResult<OverviewResponse> =
+        withCache({ api.overview() }, { cache.saveOverview(it) }, { cache.loadOverview() })
 
-    suspend fun analytics(): ApiResult<AnalyticsResponse> = safeApi { api.analytics() }
+    suspend fun analytics(): ApiResult<AnalyticsResponse> =
+        withCache({ api.analytics() }, { cache.saveAnalytics(it) }, { cache.loadAnalytics() })
 
-    suspend fun models(): ApiResult<List<ModelOption>> = safeApi { api.models() }.map { it.models }
+    suspend fun models(): ApiResult<List<ModelOption>> =
+        withCache({ api.models().models }, { cache.saveModels(it) }, { cache.loadModels() })
 
     // --- Settings ---
 
-    suspend fun saveSettings(body: SettingsWriteBody): ApiResult<SettingsDto> =
-        safeApi { api.saveSettings(body) }
+    suspend fun saveSettings(body: SettingsWriteBody): ApiResult<SettingsDto> {
+        val result = safeApi { api.saveSettings(body) }
+        return when {
+            result is ApiResult.Success -> {
+                cache.clearPendingSettings()
+                cache.saveSettings(result.data)
+                result
+            }
+            result is ApiResult.Error && result.code == null -> {
+                if (body.providerTokens != null) {
+                    ApiResult.Error("You're offline — API keys can only be saved with a connection.")
+                } else {
+                    queueSettingsPatch(json.encodeToJsonElement(SettingsWriteBody.serializer(), body).jsonObject)
+                }
+            }
+            else -> result
+        }
+    }
 
-    suspend fun patchTheme(theme: String): ApiResult<SettingsDto> =
-        safeApi { api.patchTheme(ThemePatchBody(theme)) }
+    suspend fun patchTheme(theme: String): ApiResult<SettingsDto> {
+        val result = safeApi { api.patchTheme(ThemePatchBody(theme)) }
+        return when {
+            result is ApiResult.Success -> {
+                cache.saveSettings(result.data)
+                result
+            }
+            result is ApiResult.Error && result.code == null ->
+                queueSettingsPatch(
+                    kotlinx.serialization.json.buildJsonObject {
+                        put("theme", kotlinx.serialization.json.JsonPrimitive(theme))
+                    },
+                )
+            else -> result
+        }
+    }
+
+    /** Offline settings edit: queue the partial PATCH and apply it locally. */
+    private suspend fun queueSettingsPatch(patch: kotlinx.serialization.json.JsonObject): ApiResult<SettingsDto> {
+        val safePatch = kotlinx.serialization.json.JsonObject(patch - "provider_tokens")
+        cache.mergePendingSettings(safePatch)
+        val base = cache.loadSettings() ?: SettingsDto()
+        val baseJson = json.encodeToJsonElement(SettingsDto.serializer(), base).jsonObject
+        val merged = try {
+            json.decodeFromJsonElement(
+                SettingsDto.serializer(),
+                kotlinx.serialization.json.JsonObject(baseJson + safePatch),
+            )
+        } catch (_: Exception) {
+            base
+        }
+        cache.saveSettings(merged)
+        return ApiResult.Success(merged)
+    }
 
     // --- Pools ---
 
     suspend fun pools(): ApiResult<List<PoolDto>> =
-        safeApi { api.pools() }.map { page -> page.results.filterNot { it.archived } }
+        withCache(
+            { api.pools().results.filterNot { it.archived } },
+            { cache.savePools(it) },
+            { cache.loadPools() },
+        )
 
     suspend fun createPool(name: String, description: String): ApiResult<PoolDto> =
         safeApi { api.createPool(PoolWriteBody(name = name, description = description)) }
@@ -69,40 +129,60 @@ class ContentRepository @Inject constructor(
 
     // --- Flashcards ---
 
-    suspend fun flashcards(pool: Int?, search: String?, page: Int): ApiResult<Paged<FlashcardDto>> =
-        safeApi {
+    suspend fun flashcards(pool: Int?, search: String?, page: Int): ApiResult<Paged<FlashcardDto>> {
+        val result = safeApi {
             api.flashcards(pool = pool, search = search?.takeIf { it.isNotBlank() }, page = page)
         }
+        if (result is ApiResult.Error && result.code == null && pool != null) {
+            val cards = cache.loadCards(pool) ?: return result
+            val query = search?.trim()?.lowercase().orEmpty()
+            val filtered = if (query.isEmpty()) {
+                cards
+            } else {
+                cards.filter { card ->
+                    card.term.lowercase().contains(query) ||
+                        card.shortDefinition.lowercase().contains(query) ||
+                        card.definition.lowercase().contains(query)
+                }
+            }
+            val pageSize = 30
+            val slice = filtered.drop((page - 1) * pageSize).take(pageSize)
+            return ApiResult.Success(Paged(count = filtered.size, results = slice))
+        }
+        return result
+    }
 
     suspend fun createCard(body: CardWriteBody): ApiResult<FlashcardDto> =
-        safeApi { api.createCard(body) }
+        safeApi { api.createCard(body) }.alsoCache()
 
     suspend fun patchCard(id: Int, body: CardWriteBody): ApiResult<FlashcardDto> =
-        safeApi { api.patchCard(id, body) }
+        safeApi { api.patchCard(id, body) }.alsoCache()
 
-    suspend fun suspendCard(id: Int): ApiResult<FlashcardDto> = safeApi { api.suspendCard(id) }
+    suspend fun suspendCard(id: Int): ApiResult<FlashcardDto> = safeApi { api.suspendCard(id) }.alsoCache()
 
-    suspend fun unsuspendCard(id: Int): ApiResult<FlashcardDto> = safeApi { api.unsuspendCard(id) }
+    suspend fun unsuspendCard(id: Int): ApiResult<FlashcardDto> = safeApi { api.unsuspendCard(id) }.alsoCache()
 
-    suspend fun deleteCard(id: Int): ApiResult<Unit> = safeApi { api.deleteCard(id) }
+    suspend fun deleteCard(id: Int): ApiResult<Unit> = safeApi { api.deleteCard(id) }.also {
+        if (it is ApiResult.Success) cache.removeCard(id)
+    }
 
     // --- Card images ---
 
     suspend fun setCardImageFromLink(id: Int, url: String): ApiResult<FlashcardDto> =
-        safeApi { api.setCardImageFromLink(id, ImageLinkBody(url)) }
+        safeApi { api.setCardImageFromLink(id, ImageLinkBody(url)) }.alsoCache()
 
     suspend fun uploadCardImage(id: Int, bytes: ByteArray, fileName: String): ApiResult<FlashcardDto> =
         safeApi {
             val body = bytes.toRequestBody("image/*".toMediaType())
             api.uploadCardImage(id, MultipartBody.Part.createFormData("file", fileName, body))
-        }
+        }.alsoCache()
 
-    suspend fun removeCardImage(id: Int): ApiResult<FlashcardDto> = safeApi { api.removeCardImage(id) }
+    suspend fun removeCardImage(id: Int): ApiResult<FlashcardDto> = safeApi { api.removeCardImage(id) }.alsoCache()
 
     // --- Generation ---
 
     suspend fun generate(pool: Int, term: String): ApiResult<FlashcardDto> =
-        safeApi { api.generate(GenerateBody(pool = pool, term = term)) }
+        safeApi { api.generate(GenerateBody(pool = pool, term = term)) }.alsoCache()
 
     suspend fun normalizeTerms(terms: String): ApiResult<NormalizeResponse> =
         safeApi { api.normalizeTerms(NormalizeBody(terms)) }
@@ -132,4 +212,32 @@ class ContentRepository @Inject constructor(
 
     suspend fun review(cardId: Int, request: ReviewRequest): ApiResult<ReviewResponse> =
         safeApi { api.review(cardId, request) }
+
+    // --- Offline plumbing ---
+
+    /**
+     * Serve the cached copy when the network (code == null) is the only thing
+     * that failed; real API errors pass through untouched.
+     */
+    private suspend fun <T : Any> withCache(
+        fetch: suspend () -> T,
+        save: suspend (T) -> Unit,
+        load: suspend () -> T?,
+    ): ApiResult<T> {
+        val result = safeApi { fetch() }
+        return when {
+            result is ApiResult.Success -> {
+                save(result.data)
+                result
+            }
+            result is ApiResult.Error && result.code == null ->
+                load()?.let { ApiResult.Success(it) } ?: result
+            else -> result
+        }
+    }
+
+    private suspend fun ApiResult<FlashcardDto>.alsoCache(): ApiResult<FlashcardDto> {
+        if (this is ApiResult.Success) cache.upsertCard(data)
+        return this
+    }
 }

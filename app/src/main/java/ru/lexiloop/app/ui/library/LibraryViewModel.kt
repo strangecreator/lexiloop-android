@@ -36,6 +36,7 @@ data class LibraryUiState(
     val page: Int = 1,
     val expandedCardId: Int? = null,
     val busyCardId: Int? = null,
+    val imageBusyCardId: Int? = null,
 ) {
     val totalPages: Int get() = maxOf(1, (total + PAGE_SIZE - 1) / PAGE_SIZE)
     val firstIndex: Int get() = if (total == 0) 0 else (page - 1) * PAGE_SIZE + 1
@@ -59,6 +60,7 @@ class LibraryViewModel @Inject constructor(
     private val poolStore: PoolStore,
     private val player: ru.lexiloop.app.data.repo.PronunciationPlayer,
     val toastBus: ToastBus,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context,
 ) : ViewModel() {
 
     val pools: StateFlow<List<PoolDto>> = poolStore.pools
@@ -204,6 +206,54 @@ class LibraryViewModel @Inject constructor(
                     toastBus.error(result.message)
                 }
             }
+        }
+    }
+
+    // --- Card images (mirrors the site's CardImageControls) ---
+
+    fun setImageFromLink(card: FlashcardDto, url: String) {
+        val link = url.trim()
+        if (link.isEmpty() || _state.value.imageBusyCardId != null) return
+        _state.update { it.copy(imageBusyCardId = card.id) }
+        viewModelScope.launch {
+            finishImage(repository.setCardImageFromLink(card.id, link), "Image saved")
+        }
+    }
+
+    fun uploadImage(card: FlashcardDto, uri: android.net.Uri) {
+        if (_state.value.imageBusyCardId != null) return
+        _state.update { it.copy(imageBusyCardId = card.id) }
+        viewModelScope.launch {
+            val bytes = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                runCatching {
+                    appContext.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                }.getOrNull()
+            }
+            if (bytes == null || bytes.isEmpty()) {
+                _state.update { it.copy(imageBusyCardId = null) }
+                toastBus.error("Could not read that image.")
+                return@launch
+            }
+            finishImage(repository.uploadCardImage(card.id, bytes, "upload.jpg"), "Image saved")
+        }
+    }
+
+    fun removeImage(card: FlashcardDto) {
+        if (_state.value.imageBusyCardId != null) return
+        _state.update { it.copy(imageBusyCardId = card.id) }
+        viewModelScope.launch {
+            finishImage(repository.removeCardImage(card.id), "Image removed")
+        }
+    }
+
+    private fun finishImage(result: ApiResult<FlashcardDto>, successMessage: String) {
+        _state.update { it.copy(imageBusyCardId = null) }
+        when (result) {
+            is ApiResult.Success -> {
+                updateCardInPlace(result.data)
+                toastBus.success(successMessage)
+            }
+            is ApiResult.Error -> toastBus.error(result.message)
         }
     }
 

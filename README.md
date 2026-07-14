@@ -39,6 +39,14 @@ The design system is translated 1:1 from the web app's `styles.css`:
   two-stage Bulk AI modal with live durable-job progress and failure report.
 - **AI usage** — cost stat grid, daily spend chart, by-pool breakdown,
   recent failures / healthy state.
+- **Offline mode** — the full card set (minus images) is cached on device and
+  refreshed on every sync. Without a connection the app stays usable:
+  Definition → word study continues with exact-match checking, the library and
+  overview serve from the cache, and settings edits are queued. Everything
+  recorded offline replays automatically when connectivity returns — reviews
+  in the order they were made, settings field-by-field with the last write
+  winning; if the server rejects a replayed event (card deleted, state moved
+  on), that event is dropped so the server always stays the source of truth.
 - **Settings** — the complete web settings form: generation/judge/sentence/
   image model pickers with catalog cards, per-provider API keys with staged
   edits (save/remove/undo), acceptance-score sliders, task types, appearance
@@ -57,7 +65,8 @@ ui/…           One package per page: auth, overview, study, library,
                analytics, settings
 data/api/      Retrofit interface + kotlinx.serialization DTOs
 data/auth/     SessionManager (DataStore-persisted token) + auth interceptor
-data/repo/     ContentRepository, shared stores (pools/settings/toasts)
+data/offline/  OfflineCache (JSON files), NetworkMonitor, SyncManager
+data/repo/     ContentRepository (offline-aware), shared stores
 di/            Hilt modules (OkHttp, Retrofit, Json, DataStore, app scope)
 ```
 

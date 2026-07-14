@@ -49,6 +49,10 @@ interface LexiLoopApi {
     @PATCH("api/settings/")
     suspend fun patchTheme(@Body body: ThemePatchBody): SettingsDto
 
+    /** Partial settings patch replayed from the offline queue. */
+    @PATCH("api/settings/")
+    suspend fun patchSettingsRaw(@Body body: kotlinx.serialization.json.JsonObject): SettingsDto
+
     // --- Pools ---
 
     @GET("api/pools/")

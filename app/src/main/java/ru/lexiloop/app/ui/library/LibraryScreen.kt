@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Search
@@ -195,6 +197,10 @@ fun LibraryScreen(viewModel: LibraryViewModel = hiltViewModel()) {
                     onSuspendToggle = {
                         if (card.suspended) viewModel.unsuspendCard(card) else viewModel.suspendCardAction(card)
                     },
+                    imageBusy = state.imageBusyCardId == card.id,
+                    onImageLink = { url -> viewModel.setImageFromLink(card, url) },
+                    onImageUpload = { uri -> viewModel.uploadImage(card, uri) },
+                    onImageRemove = { viewModel.removeImage(card) },
                 )
             }
             if (state.cards.isEmpty()) {
@@ -314,6 +320,10 @@ private fun LibraryCard(
     onDelete: () -> Unit,
     onPronounce: () -> Unit,
     onSuspendToggle: () -> Unit,
+    imageBusy: Boolean,
+    onImageLink: (String) -> Unit,
+    onImageUpload: (android.net.Uri) -> Unit,
+    onImageRemove: () -> Unit,
 ) {
     val p = LocalPalette.current
     Column(
@@ -331,28 +341,33 @@ private fun LibraryCard(
                 .padding(horizontal = 12.dp, vertical = 12.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    card.term,
-                    modifier = Modifier.weight(1f, fill = false),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.W700,
-                    fontFamily = Manrope,
-                    color = p.text,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (card.partOfSpeech.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Text(
-                        card.partOfSpeech.uppercase(),
-                        modifier = Modifier
-                            .border(1.dp, p.border2, RoundedCornerShape(6.dp))
-                            .padding(horizontal = 6.dp, vertical = 3.dp),
-                        fontSize = 10.sp,
-                        letterSpacing = 0.6.sp,
-                        color = p.muted,
+                        card.term,
+                        modifier = Modifier.weight(1f, fill = false),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.W700,
+                        fontFamily = Manrope,
+                        color = p.text,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
+                    if (card.partOfSpeech.isNotEmpty()) {
+                        Text(
+                            card.partOfSpeech.uppercase(),
+                            modifier = Modifier
+                                .border(1.dp, p.border2, RoundedCornerShape(6.dp))
+                                .padding(horizontal = 6.dp, vertical = 3.dp),
+                            fontSize = 10.sp,
+                            letterSpacing = 0.6.sp,
+                            color = p.muted,
+                        )
+                    }
                 }
-                Spacer(Modifier.weight(1f))
                 val scheduleState = if (card.suspended) "blocked" else card.schedule?.state ?: "new"
                 StatusPill(
                     scheduleState,
@@ -435,6 +450,15 @@ private fun LibraryCard(
                         Text(card.usageNotes, fontSize = 13.sp, lineHeight = 19.sp, color = p.muted)
                     }
                 }
+                DetailBlock("IMAGE") {
+                    CardImageBlock(
+                        card = card,
+                        busy = imageBusy,
+                        onLink = onImageLink,
+                        onUpload = onImageUpload,
+                        onRemove = onImageRemove,
+                    )
+                }
                 Box(Modifier.fillMaxWidth().height(1.dp).background(p.border))
                 // .card-actions
                 androidx.compose.foundation.layout.FlowRow(
@@ -457,6 +481,89 @@ private fun LibraryCard(
                 }
             }
         }
+    }
+}
+
+/** The site's CardImageControls: preview, link fetch, file upload, remove. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun CardImageBlock(
+    card: FlashcardDto,
+    busy: Boolean,
+    onLink: (String) -> Unit,
+    onUpload: (android.net.Uri) -> Unit,
+    onRemove: () -> Unit,
+) {
+    val p = LocalPalette.current
+    var link by remember(card.id) { mutableStateOf("") }
+    val picker = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia(),
+    ) { uri -> uri?.let(onUpload) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (card.hasImage) {
+            coil.compose.AsyncImage(
+                model = ru.lexiloop.app.data.repo.CardImages.imageUrl(card),
+                contentDescription = "Illustration for ${card.term}",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 220.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .border(1.dp, p.border, RoundedCornerShape(12.dp)),
+                contentScale = androidx.compose.ui.layout.ContentScale.FillWidth,
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.weight(1f)) {
+                LexiTextField(
+                    value = link,
+                    onValueChange = { link = it },
+                    placeholder = "Image link, or an image page",
+                )
+            }
+            LexiButton(
+                if (busy) "Working…" else "Fetch",
+                kind = ButtonKind.Secondary,
+                enabled = !busy && link.isNotBlank(),
+                onClick = {
+                    onLink(link)
+                    link = ""
+                },
+            )
+        }
+        androidx.compose.foundation.layout.FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp),
+        ) {
+            LexiButton(
+                if (card.hasImage) "Replace file" else "Upload file",
+                kind = ButtonKind.Secondary,
+                leadingIcon = Icons.Filled.Image,
+                enabled = !busy,
+                onClick = {
+                    picker.launch(
+                        androidx.activity.result.PickVisualMediaRequest(
+                            androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly,
+                        ),
+                    )
+                },
+            )
+            if (card.hasImage) {
+                LexiButton(
+                    "Remove",
+                    kind = ButtonKind.DangerText,
+                    leadingIcon = Icons.Filled.Delete,
+                    enabled = !busy,
+                    onClick = onRemove,
+                )
+            }
+        }
+        Text(
+            "Any page link works — even a copied Google or Yandex image-search page: the image assistant finds the best matching picture when the link isn't a file.",
+            fontSize = 11.sp,
+            lineHeight = 15.sp,
+            color = p.muted2,
+        )
     }
 }
 

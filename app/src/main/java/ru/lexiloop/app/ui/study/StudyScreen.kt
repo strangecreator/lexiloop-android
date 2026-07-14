@@ -25,6 +25,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Refresh
@@ -162,6 +163,31 @@ fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
                 fontWeight = FontWeight.W700,
                 color = p.muted,
             )
+        }
+        if (state.offline) {
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(p.orange.copy(alpha = 0.10f), RoundedCornerShape(10.dp))
+                    .border(1.dp, p.orange.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 12.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(
+                    Icons.Filled.CloudOff,
+                    contentDescription = null,
+                    tint = p.orange,
+                    modifier = Modifier.size(16.dp),
+                )
+                Text(
+                    "Offline — Definition → word only. Progress is saved on this device and syncs automatically.",
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    color = p.text,
+                )
+            }
         }
         Spacer(Modifier.height(7.dp))
         ProgressTrack(progress = state.progress)
@@ -391,6 +417,7 @@ private fun PosTag(text: String) {
 }
 
 /** .recall-hints: masked examples, collocations, and the letter-hint button. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun RecallHints(card: FlashcardDto, revealed: Int, onReveal: () -> Unit) {
     val p = LocalPalette.current
@@ -459,9 +486,9 @@ private fun RecallHints(card: FlashcardDto, revealed: Int, onReveal: () -> Unit)
             }
         }
         if (collocations.isNotEmpty()) {
-            Row(
+            androidx.compose.foundation.layout.FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(7.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalArrangement = Arrangement.spacedBy(7.dp),
             ) {
                 Text("Common use", fontSize = 12.sp, color = p.muted)
                 collocations.forEach { collocation ->

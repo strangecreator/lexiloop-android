@@ -30,10 +30,15 @@ class SettingsViewModel @Inject constructor(
     private val repository: ContentRepository,
     private val settingsStore: SettingsStore,
     private val toastBus: ToastBus,
+    private val devicePrefs: ru.lexiloop.app.data.repo.DevicePrefs,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SettingsUiState(form = settingsStore.settings.value))
     val state: StateFlow<SettingsUiState> = _state
+
+    val fontScale: StateFlow<Float> = devicePrefs.fontScale
+
+    fun setFontScale(value: Float) = devicePrefs.setFontScale(value)
 
     init {
         viewModelScope.launch {
@@ -79,6 +84,7 @@ class SettingsViewModel @Inject constructor(
             showCardImages = f.showCardImages,
             showImagesTermToDefinition = f.showImagesTermToDefinition,
             showImagesDefinitionToTerm = f.showImagesDefinitionToTerm,
+            showImagesTermToSentence = f.showImagesTermToSentence,
             imagePrefetchCount = f.imagePrefetchCount,
             judgeAcceptanceScore = f.judgeAcceptanceScore,
             sentenceJudgeModel = f.sentenceJudgeModel,
