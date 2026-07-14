@@ -83,7 +83,7 @@ fun AuthScreen(viewModel: AuthViewModel = hiltViewModel()) {
                 Icon(Icons.Filled.Layers, contentDescription = null, tint = Color.White, modifier = Modifier.size(21.dp))
             }
             Spacer(Modifier.width(10.dp))
-            Text("LexiLoop", fontFamily = Manrope, fontSize = 18.sp, fontWeight = FontWeight.W800, color = p.text)
+            Text("LexiLoop", fontFamily = Manrope, fontSize = 19.sp, fontWeight = FontWeight.W800, color = p.text)
         }
 
         Spacer(Modifier.height(28.dp))
@@ -144,11 +144,11 @@ fun AuthScreen(viewModel: AuthViewModel = hiltViewModel()) {
                     color = p.text,
                 )
                 Spacer(Modifier.height(5.dp))
-                Text("No email required. Your username is enough.", fontSize = 12.sp, color = p.muted)
+                Text("No email required. Your username is enough.", fontSize = 13.sp, color = p.muted)
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                Text("Username", fontSize = 11.sp, fontWeight = FontWeight.W600, color = p.muted)
+                Text("Username", fontSize = 12.sp, fontWeight = FontWeight.W600, color = p.muted)
                 LexiTextField(
                     value = state.username,
                     onValueChange = viewModel::onUsernameChange,
@@ -157,7 +157,7 @@ fun AuthScreen(viewModel: AuthViewModel = hiltViewModel()) {
                 )
             }
             Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                Text("Password", fontSize = 11.sp, fontWeight = FontWeight.W600, color = p.muted)
+                Text("Password", fontSize = 12.sp, fontWeight = FontWeight.W600, color = p.muted)
                 LexiTextField(
                     value = state.password,
                     onValueChange = viewModel::onPasswordChange,
@@ -191,7 +191,7 @@ fun AuthScreen(viewModel: AuthViewModel = hiltViewModel()) {
             Text(
                 "Provider tokens are encrypted before storage.",
                 modifier = Modifier.fillMaxWidth(),
-                fontSize = 9.sp,
+                fontSize = 10.sp,
                 color = p.muted2,
                 textAlign = TextAlign.Center,
             )
@@ -211,7 +211,7 @@ private fun AuthTab(text: String, active: Boolean, modifier: Modifier = Modifier
     ) {
         Text(
             text,
-            fontSize = 11.sp,
+            fontSize = 12.sp,
             fontWeight = FontWeight.W700,
             color = if (active) p.text else p.muted,
         )

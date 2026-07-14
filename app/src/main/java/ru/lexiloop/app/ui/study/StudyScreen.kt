@@ -137,7 +137,7 @@ fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
             Column(Modifier.weight(1f)) {
                 Text(
                     (if (state.practiceMode) "PRACTICE ROUND" else "DUE REVIEW ROUND"),
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     letterSpacing = 0.8.sp,
                     fontWeight = FontWeight.W700,
                     color = p.muted,
@@ -145,7 +145,7 @@ fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
                 Text(
                     "${state.roundCompleted} done · ${state.remaining} left" +
                         if (state.practiceMode) " in this pool" else "",
-                    fontSize = 9.sp,
+                    fontSize = 10.sp,
                     color = p.muted2,
                 )
             }
@@ -158,7 +158,7 @@ fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
                     .border(1.dp, p.border, RoundedCornerShape(9.dp))
                     .clickable { if (state.practiceMode) viewModel.returnToDue() else viewModel.startPractice() }
                     .padding(horizontal = 10.dp, vertical = 7.dp),
-                fontSize = 10.sp,
+                fontSize = 11.sp,
                 fontWeight = FontWeight.W700,
                 color = p.muted,
             )
@@ -199,7 +199,7 @@ fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
                         else -> "EXPLAIN THIS WORD"
                     },
                     modifier = Modifier.weight(1f),
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     letterSpacing = 0.9.sp,
                     fontWeight = FontWeight.W600,
                     color = p.muted,
@@ -243,13 +243,13 @@ fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
                 if (state.showsTerm && card.ipa.isNotEmpty()) {
                     Spacer(Modifier.height(10.dp))
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("/${card.ipa}/", fontSize = 15.sp, color = p.muted)
+                        Text("/${card.ipa}/", fontSize = 16.sp, color = p.muted)
                         Icon(
                             Icons.AutoMirrored.Filled.VolumeUp,
                             contentDescription = "Pronounce",
                             tint = p.primary2,
                             modifier = Modifier
-                                .size(22.dp)
+                                .size(28.dp)
                                 .clickable { viewModel.pronounce(card.term) },
                         )
                     }
@@ -277,7 +277,7 @@ fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
                             "term_to_sentence" -> "Write one sentence using this word"
                             else -> "Write the meaning in your own words"
                         },
-                        fontSize = 12.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.W600,
                         color = p.muted,
                     )
@@ -332,7 +332,7 @@ fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
                                 state.reviewed -> "Saved"
                                 else -> "Answer revealed"
                             } + if (state.practiceMode) " · Practice" else "",
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             color = p.muted,
                         )
                     }
@@ -358,7 +358,7 @@ fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(Icons.Filled.Block, contentDescription = null, tint = p.muted2, modifier = Modifier.size(14.dp))
-            Text("Block this card from future study", fontSize = 11.sp, color = p.muted2)
+            Text("Block this card from future study", fontSize = 12.sp, color = p.muted2)
         }
     }
 }
@@ -370,7 +370,7 @@ private fun QueueChip(text: String, color: androidx.compose.ui.graphics.Color) {
         modifier = Modifier
             .background(color.copy(alpha = 0.12f), CircleShape)
             .padding(horizontal = 8.dp, vertical = 3.dp),
-        fontSize = 9.sp,
+        fontSize = 10.sp,
         fontWeight = FontWeight.W700,
         color = color,
     )
@@ -384,7 +384,7 @@ private fun PosTag(text: String) {
         modifier = Modifier
             .border(1.dp, p.border2, RoundedCornerShape(6.dp))
             .padding(horizontal = 6.dp, vertical = 3.dp),
-        fontSize = 9.sp,
+        fontSize = 10.sp,
         letterSpacing = 0.6.sp,
         color = p.muted,
     )
@@ -412,13 +412,13 @@ private fun RecallHints(card: FlashcardDto, revealed: Int, onReveal: () -> Unit)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Icon(Icons.Filled.HelpOutline, contentDescription = null, tint = p.primary2, modifier = Modifier.size(16.dp))
-            Text("Context clues", fontSize = 12.sp, fontWeight = FontWeight.W700, color = p.text)
+            Text("Context clues", fontSize = 13.sp, fontWeight = FontWeight.W700, color = p.text)
             Text(
                 card.partOfSpeech.ifEmpty { "English term" },
                 modifier = Modifier
                     .background(p.surface3, CircleShape)
                     .padding(horizontal = 8.dp, vertical = 4.dp),
-                fontSize = 10.sp,
+                fontSize = 11.sp,
                 color = p.muted,
             )
         }
@@ -436,10 +436,10 @@ private fun RecallHints(card: FlashcardDto, revealed: Int, onReveal: () -> Unit)
             Text(
                 Recall.maskedTerm(card.term, revealed),
                 fontFamily = FontFamily.Monospace,
-                fontSize = 13.sp,
+                fontSize = 14.sp,
                 color = p.text,
             )
-            Text("$revealed/$total", fontSize = 9.sp, color = p.muted2)
+            Text("$revealed/$total", fontSize = 10.sp, color = p.muted2)
         }
         if (examples.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
@@ -447,13 +447,13 @@ private fun RecallHints(card: FlashcardDto, revealed: Int, onReveal: () -> Unit)
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Box(
                             Modifier
-                                .size(22.dp)
+                                .size(26.dp)
                                 .background(p.primary.copy(alpha = 0.12f), RoundedCornerShape(7.dp)),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text("${index + 1}", fontSize = 10.sp, fontWeight = FontWeight.W700, color = p.primary2)
+                            Text("${index + 1}", fontSize = 11.sp, fontWeight = FontWeight.W700, color = p.primary2)
                         }
-                        Text(sentence, fontSize = 14.sp, lineHeight = 21.sp, color = p.text, modifier = Modifier.weight(1f))
+                        Text(sentence, fontSize = 15.sp, lineHeight = 21.sp, color = p.text, modifier = Modifier.weight(1f))
                     }
                 }
             }
@@ -463,7 +463,7 @@ private fun RecallHints(card: FlashcardDto, revealed: Int, onReveal: () -> Unit)
                 horizontalArrangement = Arrangement.spacedBy(7.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Common use", fontSize = 11.sp, color = p.muted)
+                Text("Common use", fontSize = 12.sp, color = p.muted)
                 collocations.forEach { collocation ->
                     Text(
                         collocation,
@@ -471,7 +471,7 @@ private fun RecallHints(card: FlashcardDto, revealed: Int, onReveal: () -> Unit)
                             .background(p.surface, RoundedCornerShape(8.dp))
                             .border(1.dp, p.border, RoundedCornerShape(8.dp))
                             .padding(horizontal = 9.dp, vertical = 5.dp),
-                        fontSize = 12.sp,
+                        fontSize = 13.sp,
                         color = p.text,
                     )
                 }
@@ -480,7 +480,7 @@ private fun RecallHints(card: FlashcardDto, revealed: Int, onReveal: () -> Unit)
         if (examples.isEmpty() && collocations.isEmpty()) {
             Text(
                 "Think of the word that best matches this definition and its grammatical role.",
-                fontSize = 13.sp,
+                fontSize = 14.sp,
                 color = p.muted,
             )
         }
@@ -492,7 +492,7 @@ private fun RecallHints(card: FlashcardDto, revealed: Int, onReveal: () -> Unit)
                     share > 0.2f -> "More than 20% revealed: the rating is capped at Hard."
                     else -> "A letter hint was used: the rating is capped at Good."
                 },
-                fontSize = 10.sp,
+                fontSize = 11.sp,
                 color = p.orange,
             )
         }
@@ -543,14 +543,14 @@ private fun JudgeBanner(judge: JudgeResponse) {
                         binary -> "Incorrect"
                         else -> humanVerdict(judge.verdict)
                     },
-                    fontSize = 17.sp,
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.W700,
                     color = p.text,
                 )
                 val feedback = distinctFeedback(judge)
                 if (feedback.isNotEmpty()) {
                     Spacer(Modifier.height(4.dp))
-                    Text(feedback, fontSize = 13.sp, lineHeight = 19.sp, color = p.muted)
+                    Text(feedback, fontSize = 14.sp, lineHeight = 19.sp, color = p.muted)
                 }
             }
         }
@@ -590,13 +590,13 @@ private fun AnswerReveal(card: FlashcardDto, judge: JudgeResponse?, onPronounce:
                     color = p.text,
                 )
                 if (card.ipa.isNotEmpty()) {
-                    Text("/${card.ipa}/", fontSize = 13.sp, color = p.muted)
+                    Text("/${card.ipa}/", fontSize = 14.sp, color = p.muted)
                 }
             }
             // .answer-audio
             Box(
                 Modifier
-                    .size(40.dp)
+                    .size(44.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .background(p.surface, RoundedCornerShape(10.dp))
                     .border(1.dp, p.border, RoundedCornerShape(10.dp))
@@ -608,7 +608,7 @@ private fun AnswerReveal(card: FlashcardDto, judge: JudgeResponse?, onPronounce:
         }
         Text(
             card.definition,
-            fontSize = 15.sp,
+            fontSize = 16.sp,
             lineHeight = 25.sp,
             fontWeight = FontWeight.W500,
             color = p.text,
@@ -623,9 +623,9 @@ private fun AnswerReveal(card: FlashcardDto, judge: JudgeResponse?, onPronounce:
                             .background(p.surface.copy(alpha = 0.54f), RoundedCornerShape(8.dp))
                             .padding(horizontal = 12.dp, vertical = 9.dp),
                     ) {
-                        Text("“${example.sentence}”", fontSize = 13.sp, lineHeight = 20.sp, color = p.text)
+                        Text("“${example.sentence}”", fontSize = 14.sp, lineHeight = 20.sp, color = p.text)
                         if (example.note.isNotEmpty()) {
-                            Text(example.note, fontSize = 11.sp, color = p.muted, modifier = Modifier.padding(top = 4.dp))
+                            Text(example.note, fontSize = 12.sp, color = p.muted, modifier = Modifier.padding(top = 4.dp))
                         }
                     }
                 }

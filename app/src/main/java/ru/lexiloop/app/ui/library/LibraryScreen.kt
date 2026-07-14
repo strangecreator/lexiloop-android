@@ -114,7 +114,7 @@ fun LibraryScreen(viewModel: LibraryViewModel = hiltViewModel()) {
                 Spacer(Modifier.height(8.dp))
                 Text(
                     "Definition, IPA, forms, examples, synonyms, collocations, and usage notes are generated automatically.",
-                    fontSize = 13.sp,
+                    fontSize = 14.sp,
                     lineHeight = 20.sp,
                     color = p.muted,
                 )
@@ -149,7 +149,7 @@ fun LibraryScreen(viewModel: LibraryViewModel = hiltViewModel()) {
                     } else {
                         "0 visible cards"
                     },
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     color = p.muted,
                 )
                 Spacer(Modifier.height(12.dp))
@@ -224,7 +224,7 @@ fun LibraryScreen(viewModel: LibraryViewModel = hiltViewModel()) {
                         Text(
                             "Page ${state.page} of ${state.totalPages}",
                             modifier = Modifier.weight(1f),
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             color = p.muted,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         )
@@ -286,7 +286,7 @@ private fun PageArrow(
     val p = LocalPalette.current
     Box(
         Modifier
-            .size(40.dp)
+            .size(44.dp)
             .clip(RoundedCornerShape(10.dp))
             .background(p.surface2, RoundedCornerShape(10.dp))
             .border(1.dp, p.border, RoundedCornerShape(10.dp))
@@ -334,7 +334,7 @@ private fun LibraryCard(
                 Text(
                     card.term,
                     modifier = Modifier.weight(1f, fill = false),
-                    fontSize = 15.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.W700,
                     fontFamily = Manrope,
                     color = p.text,
@@ -347,7 +347,7 @@ private fun LibraryCard(
                         modifier = Modifier
                             .border(1.dp, p.border2, RoundedCornerShape(6.dp))
                             .padding(horizontal = 6.dp, vertical = 3.dp),
-                        fontSize = 9.sp,
+                        fontSize = 10.sp,
                         letterSpacing = 0.6.sp,
                         color = p.muted,
                     )
@@ -374,7 +374,7 @@ private fun LibraryCard(
             Spacer(Modifier.height(4.dp))
             Text(
                 card.shortDefinition.ifEmpty { card.definition },
-                fontSize = 13.sp,
+                fontSize = 14.sp,
                 color = p.muted,
                 maxLines = if (expanded) 10 else 1,
                 overflow = TextOverflow.Ellipsis,
@@ -391,7 +391,7 @@ private fun LibraryCard(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 DetailBlock("DEFINITION") {
-                    Text(card.definition, fontSize = 14.sp, lineHeight = 22.sp, color = p.text)
+                    Text(card.definition, fontSize = 15.sp, lineHeight = 22.sp, color = p.text)
                 }
                 val examples = card.exampleSentences()
                 if (examples.isNotEmpty()) {
@@ -406,9 +406,9 @@ private fun LibraryCard(
                                             .background(p.primary),
                                     )
                                     Column(Modifier.padding(start = 12.dp)) {
-                                        Text("“${example.sentence}”", fontSize = 13.sp, color = p.muted, lineHeight = 19.sp)
+                                        Text("“${example.sentence}”", fontSize = 14.sp, color = p.muted, lineHeight = 19.sp)
                                         if (example.note.isNotEmpty()) {
-                                            Text(example.note, fontSize = 11.sp, color = p.muted2)
+                                            Text(example.note, fontSize = 12.sp, color = p.muted2)
                                         }
                                     }
                                 }
@@ -432,7 +432,7 @@ private fun LibraryCard(
                         horizontalArrangement = Arrangement.spacedBy(9.dp),
                     ) {
                         Icon(Icons.Filled.HelpOutline, contentDescription = null, tint = p.primary2, modifier = Modifier.size(16.dp))
-                        Text(card.usageNotes, fontSize = 12.sp, lineHeight = 18.sp, color = p.muted)
+                        Text(card.usageNotes, fontSize = 13.sp, lineHeight = 19.sp, color = p.muted)
                     }
                 }
                 Box(Modifier.fillMaxWidth().height(1.dp).background(p.border))
@@ -466,7 +466,7 @@ private fun DetailBlock(label: String, content: @Composable () -> Unit) {
     Column {
         Text(
             label,
-            fontSize = 9.sp,
+            fontSize = 10.sp,
             letterSpacing = 1.2.sp,
             fontWeight = FontWeight.W800,
             color = p.muted2,

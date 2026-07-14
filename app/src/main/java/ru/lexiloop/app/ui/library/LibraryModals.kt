@@ -178,11 +178,11 @@ fun BulkModal(state: BulkUiState, viewModel: LibraryViewModel) {
                         else -> "${job.processedCount} of ${job.totalCount} finished"
                     },
                     modifier = Modifier.weight(1f),
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.W700,
                     color = p.text,
                 )
-                Text("${"%.1f".format(job.progress)}%", fontSize = 11.sp, color = p.primary2)
+                Text("${"%.1f".format(job.progress)}%", fontSize = 12.sp, color = p.primary2)
             }
             if (active) {
                 Row(
@@ -196,8 +196,8 @@ fun BulkModal(state: BulkUiState, viewModel: LibraryViewModel) {
                     Icon(Icons.Filled.Refresh, contentDescription = null, tint = p.primary2, modifier = Modifier.size(17.dp))
                     Text(
                         "Each successful card is saved immediately. Failed items are retried in later rounds with three attempts per request.",
-                        fontSize = 11.sp,
-                        lineHeight = 17.sp,
+                        fontSize = 12.sp,
+                        lineHeight = 18.sp,
                         color = p.muted,
                     )
                 }
@@ -214,7 +214,7 @@ fun BulkModal(state: BulkUiState, viewModel: LibraryViewModel) {
                 ) {
                     Text(
                         "${job.failedTerms.size} terms could not be generated",
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.W700,
                         color = p.red,
                     )
@@ -226,11 +226,11 @@ fun BulkModal(state: BulkUiState, viewModel: LibraryViewModel) {
                     ) {
                         job.failedTerms.forEach { failed ->
                             Column {
-                                Text(failed.term, fontSize = 11.sp, fontWeight = FontWeight.W700, color = p.text)
-                                Text(failed.error, fontSize = 10.sp, lineHeight = 14.sp, color = p.muted)
+                                Text(failed.term, fontSize = 12.sp, fontWeight = FontWeight.W700, color = p.text)
+                                Text(failed.error, fontSize = 11.sp, lineHeight = 15.sp, color = p.muted)
                                 Text(
                                     "${failed.attempts} round attempt${if (failed.attempts == 1) "" else "s"}",
-                                    fontSize = 9.sp,
+                                    fontSize = 10.sp,
                                     color = p.muted2,
                                 )
                             }
@@ -281,8 +281,8 @@ fun BulkModal(state: BulkUiState, viewModel: LibraryViewModel) {
                 Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = p.primary2, modifier = Modifier.size(17.dp))
                 Text(
                     "Infinitive to, part-of-speech labels, duplicate grammatical variants, and list separators will be cleaned first.",
-                    fontSize = 11.sp,
-                    lineHeight = 17.sp,
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp,
                     color = p.muted,
                 )
             }
@@ -339,14 +339,14 @@ fun BulkModal(state: BulkUiState, viewModel: LibraryViewModel) {
             ) {
                 Text(
                     "${preview.errors.size} rejected items",
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.W700,
                     color = p.muted,
                 )
                 preview.errors.take(20).forEach { rejected ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(rejected.term, fontSize = 10.sp, color = p.red, fontWeight = FontWeight.W700)
-                        Text(rejected.error, fontSize = 10.sp, color = p.red, modifier = Modifier.weight(1f))
+                        Text(rejected.term, fontSize = 11.sp, color = p.red, fontWeight = FontWeight.W700)
+                        Text(rejected.error, fontSize = 11.sp, color = p.red, modifier = Modifier.weight(1f))
                     }
                 }
             }
@@ -361,10 +361,10 @@ fun BulkModal(state: BulkUiState, viewModel: LibraryViewModel) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Column {
-                Text("Concurrent requests", fontSize = 12.sp, fontWeight = FontWeight.W700, color = p.text)
+                Text("Concurrent requests", fontSize = 13.sp, fontWeight = FontWeight.W700, color = p.text)
                 Text(
                     "The worker retries failures across up to five convergence rounds.",
-                    fontSize = 9.sp,
+                    fontSize = 10.sp,
                     color = p.muted,
                 )
             }
@@ -379,7 +379,7 @@ fun BulkModal(state: BulkUiState, viewModel: LibraryViewModel) {
                             .border(1.dp, if (active) p.primary else p.border, RoundedCornerShape(8.dp))
                             .clickable { viewModel.onBulkBatchSize(preset) }
                             .padding(vertical = 7.dp),
-                        fontSize = 10.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.W700,
                         color = if (active) p.text else p.muted,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -418,7 +418,7 @@ private fun BulkStat(value: Int, label: String, modifier: Modifier = Modifier) {
         )
         Text(
             label.uppercase(),
-            fontSize = 9.sp,
+            fontSize = 10.sp,
             letterSpacing = 0.6.sp,
             color = p.muted,
         )

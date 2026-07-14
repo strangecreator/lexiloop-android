@@ -127,7 +127,7 @@ fun OverviewScreen(
                     } else {
                         "You are caught up. Add a few words or explore your library."
                     },
-                    fontSize = 13.sp,
+                    fontSize = 14.sp,
                     lineHeight = 20.sp,
                     color = p.muted,
                 )
@@ -196,7 +196,7 @@ fun OverviewScreen(
                         Spacer(Modifier.height(4.dp))
                         Text(
                             "Share of all reviews accepted as correct.",
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             color = p.muted,
                         )
                     }
@@ -213,7 +213,7 @@ fun OverviewScreen(
                 )
                 Text(
                     "${stats?.activity?.sumOf { it.reviews } ?: 0} reviews in the last year",
-                    fontSize = 13.sp,
+                    fontSize = 14.sp,
                     color = p.muted,
                 )
                 Spacer(Modifier.height(16.dp))
@@ -229,7 +229,7 @@ fun OverviewScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    Text("Open library", color = p.primary2, fontSize = 13.sp, fontWeight = FontWeight.W700)
+                    Text("Open library", color = p.primary2, fontSize = 14.sp, fontWeight = FontWeight.W700)
                     Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = p.primary2, modifier = Modifier.size(16.dp))
                 }
             }
@@ -266,7 +266,7 @@ fun OverviewScreen(
                 Column(Modifier.weight(1f)) {
                     Text(
                         pool.name,
-                        fontSize = 14.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.W700,
                         fontFamily = Manrope,
                         color = p.text,
@@ -275,17 +275,17 @@ fun OverviewScreen(
                     )
                     Text(
                         pool.description.ifEmpty { "Your vocabulary collection" },
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         color = p.muted,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Spacer(Modifier.height(6.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(13.dp)) {
-                        Text("${pool.cardCount} cards", fontSize = 10.sp, color = p.muted)
+                        Text("${pool.cardCount} cards", fontSize = 11.sp, color = p.muted)
                         Text(
                             "${pool.dueCount} due",
-                            fontSize = 10.sp,
+                            fontSize = 11.sp,
                             color = if (pool.dueCount > 0) p.orange else p.muted,
                         )
                     }
@@ -340,7 +340,7 @@ private fun RetentionRing(percent: Float) {
                 fontWeight = FontWeight.W800,
                 color = p.text,
             )
-            Text("retention", fontSize = 11.sp, color = p.muted)
+            Text("retention", fontSize = 12.sp, color = p.muted)
         }
     }
 }
@@ -400,7 +400,7 @@ fun ActivityHeatmap(rows: List<ActivityDayDto>) {
             Box(Modifier.width(40.dp))
             listOf("M", "T", "W", "T", "F", "S", "S").forEach { label ->
                 Box(Modifier.size(17.dp), contentAlignment = Alignment.Center) {
-                    Text(label, fontSize = 9.sp, fontWeight = FontWeight.W800, color = p.muted2)
+                    Text(label, fontSize = 10.sp, fontWeight = FontWeight.W800, color = p.muted2)
                 }
             }
         }
@@ -416,7 +416,7 @@ fun ActivityHeatmap(rows: List<ActivityDayDto>) {
             if (label.isNotEmpty()) lastLabel = label
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.width(40.dp), contentAlignment = Alignment.CenterEnd) {
-                    Text(label, fontSize = 9.sp, color = p.muted, modifier = Modifier.padding(end = 6.dp))
+                    Text(label, fontSize = 10.sp, color = p.muted, modifier = Modifier.padding(end = 6.dp))
                 }
                 week.forEach { (_, count) ->
                     Box(
@@ -438,11 +438,11 @@ fun ActivityHeatmap(rows: List<ActivityDayDto>) {
                     .weight(1f)
                     .clickable { expanded = !expanded },
                 color = p.primary2,
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.W700,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Less", fontSize = 9.sp, color = p.muted2)
+                Text("Less", fontSize = 10.sp, color = p.muted2)
                 (0..4).forEach { levelValue ->
                     Box(
                         Modifier
@@ -450,7 +450,7 @@ fun ActivityHeatmap(rows: List<ActivityDayDto>) {
                             .background(cellColor(levelValue), RoundedCornerShape(3.dp)),
                     )
                 }
-                Text("More", fontSize = 9.sp, color = p.muted2)
+                Text("More", fontSize = 10.sp, color = p.muted2)
             }
         }
     }

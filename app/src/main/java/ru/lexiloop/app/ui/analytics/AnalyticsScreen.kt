@@ -144,14 +144,14 @@ fun AnalyticsScreen(viewModel: AnalyticsViewModel = hiltViewModel()) {
                             .height(180.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text("The chart appears after your first LLM call.", fontSize = 13.sp, color = p.muted)
+                        Text("The chart appears after your first LLM call.", fontSize = 14.sp, color = p.muted)
                     }
                 } else {
                     CostChart(data)
                     Spacer(Modifier.height(8.dp))
                     Row(Modifier.fillMaxWidth()) {
-                        Text(data.daily.first().day, fontSize = 10.sp, color = p.muted2, modifier = Modifier.weight(1f))
-                        Text(data.daily.last().day, fontSize = 10.sp, color = p.muted2)
+                        Text(data.daily.first().day, fontSize = 11.sp, color = p.muted2, modifier = Modifier.weight(1f))
+                        Text(data.daily.last().day, fontSize = 11.sp, color = p.muted2)
                     }
                 }
             }
@@ -162,7 +162,7 @@ fun AnalyticsScreen(viewModel: AnalyticsViewModel = hiltViewModel()) {
                 SectionHeading("Breakdown", "By pool")
                 Spacer(Modifier.height(10.dp))
                 if (data.byPool.isEmpty()) {
-                    Text("No pools yet.", fontSize = 13.sp, color = p.muted)
+                    Text("No pools yet.", fontSize = 14.sp, color = p.muted)
                 }
                 data.byPool.forEachIndexed { index, row ->
                     if (index > 0) {
@@ -179,7 +179,7 @@ fun AnalyticsScreen(viewModel: AnalyticsViewModel = hiltViewModel()) {
                         Column(Modifier.weight(1f)) {
                             Text(
                                 row.poolName.ifEmpty { "Deleted pool" },
-                                fontSize = 13.sp,
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.W700,
                                 color = p.text,
                                 maxLines = 1,
@@ -187,14 +187,14 @@ fun AnalyticsScreen(viewModel: AnalyticsViewModel = hiltViewModel()) {
                             )
                             Text(
                                 "${row.calls} calls · ${formatTokens(row.tokens)} tokens",
-                                fontSize = 10.sp,
+                                fontSize = 11.sp,
                                 color = p.muted,
                             )
                         }
                         Text(
                             "$${"%.4f".format(row.cost)}",
                             fontFamily = Manrope,
-                            fontSize = 13.sp,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.W700,
                             color = p.text,
                         )
@@ -216,9 +216,9 @@ fun AnalyticsScreen(viewModel: AnalyticsViewModel = hiltViewModel()) {
                     ) {
                         Icon(Icons.Filled.VerifiedUser, contentDescription = null, tint = p.green, modifier = Modifier.size(34.dp))
                         Spacer(Modifier.height(10.dp))
-                        Text("No recent failures", fontSize = 14.sp, fontWeight = FontWeight.W700, color = p.text)
+                        Text("No recent failures", fontSize = 15.sp, fontWeight = FontWeight.W700, color = p.text)
                         Spacer(Modifier.height(4.dp))
-                        Text("Your provider calls look healthy.", fontSize = 11.sp, color = p.green)
+                        Text("Your provider calls look healthy.", fontSize = 12.sp, color = p.green)
                     }
                 }
                 data.failures.forEachIndexed { index, failure ->
@@ -237,24 +237,24 @@ fun AnalyticsScreen(viewModel: AnalyticsViewModel = hiltViewModel()) {
                                 .background(p.red.copy(alpha = 0.12f), RoundedCornerShape(7.dp)),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text("!", fontSize = 13.sp, fontWeight = FontWeight.W800, color = p.red)
+                            Text("!", fontSize = 14.sp, fontWeight = FontWeight.W800, color = p.red)
                         }
                         Column(Modifier.weight(1f)) {
                             Text(
                                 "${failure.operation} · ${failure.model}",
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.W700,
                                 color = p.text,
                             )
                             Text(
                                 failure.error,
-                                fontSize = 10.sp,
-                                lineHeight = 14.sp,
+                                fontSize = 11.sp,
+                                lineHeight = 15.sp,
                                 color = p.muted,
                                 maxLines = 4,
                                 overflow = TextOverflow.Ellipsis,
                             )
-                            Text(failure.createdAt.take(19).replace('T', ' '), fontSize = 9.sp, color = p.muted2)
+                            Text(failure.createdAt.take(19).replace('T', ' '), fontSize = 10.sp, color = p.muted2)
                         }
                     }
                 }

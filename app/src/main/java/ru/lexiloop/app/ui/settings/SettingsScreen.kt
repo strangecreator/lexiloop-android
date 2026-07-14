@@ -195,10 +195,10 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("Study images", fontSize = 12.sp, fontWeight = FontWeight.W600, color = p.muted)
+                        Text("Study images", fontSize = 13.sp, fontWeight = FontWeight.W600, color = p.muted)
                         Text(
                             if (form.showCardImages) "Images are shown on flashcards" else "Images stay hidden during study",
-                            fontSize = 10.sp,
+                            fontSize = 11.sp,
                             color = p.muted2,
                         )
                     }
@@ -264,8 +264,8 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                                     ),
                             )
                             Column(Modifier.weight(1f)) {
-                                Text(name, fontSize = 13.sp, fontWeight = FontWeight.W700, color = p.text)
-                                Text(tokenLabel, fontSize = 10.sp, color = p.muted2)
+                                Text(name, fontSize = 14.sp, fontWeight = FontWeight.W700, color = p.text)
+                                Text(tokenLabel, fontSize = 11.sp, color = p.muted2)
                             }
                             StatusPill(
                                 keyState,
@@ -283,7 +283,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                                         .clip(RoundedCornerShape(7.dp))
                                         .clickable { viewModel.unstageToken(providerId) }
                                         .padding(horizontal = 8.dp, vertical = 6.dp),
-                                    fontSize = 11.sp,
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.W700,
                                     color = p.muted,
                                 )
@@ -294,7 +294,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                                         .clip(RoundedCornerShape(7.dp))
                                         .clickable { viewModel.stageToken(providerId, "") }
                                         .padding(horizontal = 8.dp, vertical = 6.dp),
-                                    fontSize = 11.sp,
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.W700,
                                     color = p.red,
                                 )
@@ -363,8 +363,8 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
                         Icon(Icons.Filled.Palette, contentDescription = null, tint = p.primary2, modifier = Modifier.size(18.dp))
                         Column {
-                            Text("Interface color", fontSize = 12.sp, fontWeight = FontWeight.W700, color = p.text)
-                            Text("Choose the accent used for actions, charts, and highlights.", fontSize = 10.sp, color = p.muted)
+                            Text("Interface color", fontSize = 13.sp, fontWeight = FontWeight.W700, color = p.text)
+                            Text("Choose the accent used for actions, charts, and highlights.", fontSize = 11.sp, color = p.muted)
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -373,7 +373,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                             val active = form.accentColor == accentName
                             Box(
                                 Modifier
-                                    .size(31.dp)
+                                    .size(38.dp)
                                     .clip(RoundedCornerShape(10.dp))
                                     .background(p.surface, RoundedCornerShape(10.dp))
                                     .border(
@@ -384,7 +384,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                                     .clickable { viewModel.patch { it.copy(accentColor = accentName) } },
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Box(Modifier.size(17.dp).background(swatch, RoundedCornerShape(6.dp)))
+                                Box(Modifier.size(20.dp).background(swatch, RoundedCornerShape(6.dp)))
                             }
                         }
                     }
@@ -481,7 +481,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 Text(
                     "Changes apply to future reviews.",
                     modifier = Modifier.weight(1f),
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     color = p.muted,
                 )
                 LexiButton(
@@ -534,8 +534,8 @@ private fun SettingsSection(
                 Icon(icon, contentDescription = null, tint = p.primary2, modifier = Modifier.size(19.dp))
             }
             Column(Modifier.weight(1f)) {
-                Text(title, fontSize = 15.sp, fontWeight = FontWeight.W700, color = p.text)
-                Text(subtitle, fontSize = 11.sp, lineHeight = 15.sp, color = p.muted)
+                Text(title, fontSize = 16.sp, fontWeight = FontWeight.W700, color = p.text)
+                Text(subtitle, fontSize = 12.sp, lineHeight = 16.sp, color = p.muted)
             }
             if (status != null) {
                 StatusPill(
@@ -570,7 +570,7 @@ private fun SettingsField(label: String, hint: String? = null, content: @Composa
         FieldLabel(label)
         content()
         if (hint != null) {
-            Text(hint, fontSize = 10.sp, lineHeight = 14.sp, color = p.muted2)
+            Text(hint, fontSize = 11.sp, lineHeight = 15.sp, color = p.muted2)
         }
     }
 }
@@ -580,8 +580,8 @@ private fun ScoreSlider(label: String, hint: String, value: Int, onValue: (Int) 
     val p = LocalPalette.current
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row {
-            Text(label, fontSize = 12.sp, fontWeight = FontWeight.W600, color = p.muted, modifier = Modifier.weight(1f))
-            Text("$value", fontSize = 12.sp, fontWeight = FontWeight.W800, color = p.text)
+            Text(label, fontSize = 13.sp, fontWeight = FontWeight.W600, color = p.muted, modifier = Modifier.weight(1f))
+            Text("$value", fontSize = 13.sp, fontWeight = FontWeight.W800, color = p.text)
         }
         Slider(
             value = value.toFloat(),
@@ -594,7 +594,7 @@ private fun ScoreSlider(label: String, hint: String, value: Int, onValue: (Int) 
                 inactiveTrackColor = p.surface3,
             ),
         )
-        Text(hint, fontSize = 10.sp, color = p.muted2)
+        Text(hint, fontSize = 11.sp, color = p.muted2)
     }
 }
 
@@ -618,30 +618,30 @@ private fun TimingBand(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column {
-            Text(title, fontSize = 13.sp, fontWeight = FontWeight.W700, color = p.text)
-            Text(description, fontSize = 11.sp, color = p.muted)
+            Text(title, fontSize = 14.sp, fontWeight = FontWeight.W700, color = p.text)
+            Text(description, fontSize = 12.sp, color = p.muted)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
             ThresholdBox("EASY", Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text("<", fontSize = 12.sp, color = p.text)
+                    Text("<", fontSize = 13.sp, color = p.text)
                     Box(Modifier.width(64.dp)) {
                         NumberInput(easy.toDouble(), { setEasy(it.toInt()) }, min = 1.0, max = 600.0, round = true)
                     }
-                    Text("sec", fontSize = 12.sp, color = p.text)
+                    Text("sec", fontSize = 13.sp, color = p.text)
                 }
             }
             ThresholdBox("GOOD", Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text("<", fontSize = 12.sp, color = p.text)
+                    Text("<", fontSize = 13.sp, color = p.text)
                     Box(Modifier.width(64.dp)) {
                         NumberInput(good.toDouble(), { setGood(it.toInt()) }, min = 2.0, max = 900.0, round = true)
                     }
-                    Text("sec", fontSize = 12.sp, color = p.text)
+                    Text("sec", fontSize = 13.sp, color = p.text)
                 }
             }
             ThresholdBox("HARD", Modifier.weight(1f)) {
-                Text("≥ $good sec", fontSize = 12.sp, fontWeight = FontWeight.W600, color = p.text)
+                Text("≥ $good sec", fontSize = 13.sp, fontWeight = FontWeight.W600, color = p.text)
             }
         }
     }
@@ -657,7 +657,7 @@ private fun ThresholdBox(label: String, modifier: Modifier = Modifier, content: 
             .padding(horizontal = 9.dp, vertical = 9.dp),
         verticalArrangement = Arrangement.spacedBy(5.dp),
     ) {
-        Text(label, fontSize = 10.sp, letterSpacing = 0.8.sp, color = p.muted)
+        Text(label, fontSize = 11.sp, letterSpacing = 0.8.sp, color = p.muted)
         content()
     }
 }
@@ -703,7 +703,7 @@ private fun ModelPicker(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(selected.label, fontSize = 12.sp, fontWeight = FontWeight.W700, color = p.text)
+                    Text(selected.label, fontSize = 13.sp, fontWeight = FontWeight.W700, color = p.text)
                     if (selected.badge.isNotEmpty()) {
                         Text(
                             selected.badge.uppercase(),
@@ -716,13 +716,13 @@ private fun ModelPicker(
                         )
                     }
                 }
-                Text(selected.provider, fontSize = 9.sp, color = p.primary2)
+                Text(selected.provider, fontSize = 10.sp, color = p.primary2)
                 if (selected.description.isNotEmpty()) {
-                    Text(selected.description, fontSize = 11.sp, lineHeight = 16.sp, color = p.muted)
+                    Text(selected.description, fontSize = 12.sp, lineHeight = 17.sp, color = p.muted)
                 }
             }
         } else if (models.isEmpty()) {
-            Text("Loading the public model catalog…", fontSize = 10.sp, color = p.muted2)
+            Text("Loading the public model catalog…", fontSize = 11.sp, color = p.muted2)
         }
     }
 }

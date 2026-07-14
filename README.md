@@ -100,13 +100,28 @@ The base URL is a `BuildConfig` field (`API_BASE_URL`, defaults to
 Requirements: JDK 17, Android SDK 35 (Android Studio Ladybug or newer).
 
 ```bash
+./gradlew assembleRelease      # minified, signed release APK (install this one)
 ./gradlew assembleDebug        # debug APK -> app/build/outputs/apk/debug/
 ./gradlew testDebugUnitTest    # JVM unit tests
-./gradlew assembleRelease      # minified release (configure signing first)
 ```
 
-CI builds and tests every push on GitHub Actions and uploads the debug APK as
-a workflow artifact (`lexiloop-debug-apk`).
+CI builds and tests every push on GitHub Actions and uploads both APKs as
+workflow artifacts. **Install `lexiloop-release-apk`** — debug builds of
+Jetpack Compose apps run without ahead-of-time compilation or R8 and are
+noticeably slower; the release build is the one meant for real use.
+
+### Release signing
+
+Release builds are signed with `signing/lexiloop-release.p12`, a self-signed
+development key checked into the repo so CI can produce installable builds
+(passwords in `app/build.gradle.kts`). Because the key is public, treat these
+builds as sideload-only: anyone could sign an APK with the same key, so never
+distribute them through a store or download page. Before any real
+distribution, generate a private keystore and point the build at it via
+`LEXILOOP_KEYSTORE`, `LEXILOOP_KEYSTORE_PASSWORD`, `LEXILOOP_KEY_ALIAS`, and
+`LEXILOOP_KEY_PASSWORD` (e.g. from GitHub Actions secrets) — no code changes
+needed. Note that switching keys changes the APK signature, which requires
+uninstalling the previously installed build once.
 
 ## Versions
 

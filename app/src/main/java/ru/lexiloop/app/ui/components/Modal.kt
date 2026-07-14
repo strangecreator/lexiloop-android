@@ -70,10 +70,10 @@ fun LexiModal(
                 verticalAlignment = Alignment.Top,
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text(title, style = MaterialTheme.typography.titleMedium, fontSize = 18.sp)
+                    Text(title, style = MaterialTheme.typography.titleMedium, fontSize = 19.sp)
                     if (subtitle != null) {
                         Spacer(Modifier.height(4.dp))
-                        Text(subtitle, fontSize = 11.sp, color = p.muted, lineHeight = 16.sp)
+                        Text(subtitle, fontSize = 12.sp, color = p.muted, lineHeight = 17.sp)
                     }
                 }
                 LexiIconButton(Icons.Filled.Close, contentDescription = "Close", onClick = onClose)
@@ -130,15 +130,15 @@ fun LexiSelect(
                 .background(p.surface2, shape)
                 .border(1.dp, if (open) p.primary else p.border, shape)
                 .clickable { open = true }
-                .defaultMinSize(minHeight = 42.dp)
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .defaultMinSize(minHeight = 50.dp)
+                .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 selectedLabel ?: placeholder,
                 modifier = Modifier.weight(1f),
                 color = if (selectedLabel != null) p.text else p.muted2,
-                fontSize = 14.sp,
+                fontSize = 15.sp,
                 fontWeight = if (selectedLabel != null) FontWeight.W600 else FontWeight.W400,
                 maxLines = 1,
             )
@@ -146,7 +146,7 @@ fun LexiSelect(
                 Icons.Filled.KeyboardArrowDown,
                 contentDescription = null,
                 tint = p.muted,
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(20.dp),
             )
         }
         DropdownMenu(
@@ -159,7 +159,7 @@ fun LexiSelect(
                     text = {
                         Text(
                             label,
-                            fontSize = 13.sp,
+                            fontSize = 14.sp,
                             color = if (optionValue == value) p.primary2 else p.text,
                         )
                     },

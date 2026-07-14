@@ -153,14 +153,14 @@ private fun typography(text: Color): Typography {
         headlineMedium = base.copy(fontFamily = Manrope, fontSize = 27.sp, fontWeight = FontWeight.W700, lineHeight = 33.sp),
         headlineSmall = base.copy(fontFamily = Manrope, fontSize = 22.sp, fontWeight = FontWeight.W700, lineHeight = 27.sp),
         titleLarge = base.copy(fontFamily = Manrope, fontSize = 20.sp, fontWeight = FontWeight.W700),
-        titleMedium = base.copy(fontFamily = Manrope, fontSize = 16.sp, fontWeight = FontWeight.W700),
-        titleSmall = base.copy(fontFamily = Manrope, fontSize = 14.sp, fontWeight = FontWeight.W700),
-        bodyLarge = base.copy(fontSize = 16.sp, lineHeight = 25.sp),
-        bodyMedium = base.copy(fontSize = 14.sp, lineHeight = 21.sp),
-        bodySmall = base.copy(fontSize = 12.sp, lineHeight = 17.sp),
-        labelLarge = base.copy(fontSize = 14.sp, fontWeight = FontWeight.W700),
-        labelMedium = base.copy(fontSize = 12.sp, fontWeight = FontWeight.W600),
-        labelSmall = base.copy(fontSize = 10.sp, fontWeight = FontWeight.W700),
+        titleMedium = base.copy(fontFamily = Manrope, fontSize = 17.sp, fontWeight = FontWeight.W700),
+        titleSmall = base.copy(fontFamily = Manrope, fontSize = 15.sp, fontWeight = FontWeight.W700),
+        bodyLarge = base.copy(fontSize = 17.sp, lineHeight = 25.sp),
+        bodyMedium = base.copy(fontSize = 15.sp, lineHeight = 21.sp),
+        bodySmall = base.copy(fontSize = 13.sp, lineHeight = 18.sp),
+        labelLarge = base.copy(fontSize = 15.sp, fontWeight = FontWeight.W700),
+        labelMedium = base.copy(fontSize = 13.sp, fontWeight = FontWeight.W600),
+        labelSmall = base.copy(fontSize = 11.sp, fontWeight = FontWeight.W700),
     )
 }
 

@@ -130,8 +130,8 @@ fun SidebarContent(
             }
             Spacer(Modifier.width(11.dp))
             Column(Modifier.weight(1f)) {
-                Text("LexiLoop", fontFamily = Manrope, fontSize = 18.sp, fontWeight = FontWeight.W800, color = p.text)
-                Text("Vocabulary studio", fontSize = 11.sp, color = p.muted)
+                Text("LexiLoop", fontFamily = Manrope, fontSize = 19.sp, fontWeight = FontWeight.W800, color = p.text)
+                Text("Vocabulary studio", fontSize = 12.sp, color = p.muted)
             }
             Box(
                 Modifier
@@ -164,19 +164,19 @@ fun SidebarContent(
             Text(
                 "YOUR POOLS",
                 modifier = Modifier.weight(1f),
-                fontSize = 10.sp,
+                fontSize = 11.sp,
                 fontWeight = FontWeight.W800,
                 letterSpacing = 1.3.sp,
                 color = p.muted2,
             )
             Box(
                 Modifier
-                    .size(28.dp)
+                    .size(36.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .clickable { creating = true },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Filled.Add, contentDescription = "New pool", tint = p.muted, modifier = Modifier.size(16.dp))
+                Icon(Icons.Filled.Add, contentDescription = "New pool", tint = p.muted, modifier = Modifier.size(18.dp))
             }
         }
         LazyColumn(
@@ -194,7 +194,7 @@ fun SidebarContent(
                             onClick = { viewModel.selectPool(pool.id); onClose() },
                             onLongClick = { menuPool = pool },
                         )
-                        .height(39.dp)
+                        .height(48.dp)
                         .padding(horizontal = 11.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -204,25 +204,25 @@ fun SidebarContent(
                         pool.name,
                         modifier = Modifier.weight(1f),
                         color = if (active) p.text else p.muted,
-                        fontSize = 14.sp,
+                        fontSize = 15.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    Text(pool.cardCount.toString(), fontSize = 12.sp, color = p.muted2)
+                    Text(pool.cardCount.toString(), fontSize = 13.sp, color = p.muted2)
                     Box(
                         Modifier
-                            .size(27.dp)
+                            .size(36.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .clickable { menuPool = pool },
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(Icons.Filled.MoreVert, contentDescription = "Actions for ${pool.name}", tint = p.muted2, modifier = Modifier.size(15.dp))
+                        Icon(Icons.Filled.MoreVert, contentDescription = "Actions for ${pool.name}", tint = p.muted2, modifier = Modifier.size(17.dp))
                     }
                 }
             }
             if (pools.isEmpty()) {
                 item {
-                    Text("Create a pool to begin.", fontSize = 13.sp, color = p.muted2, modifier = Modifier.padding(12.dp))
+                    Text("Create a pool to begin.", fontSize = 14.sp, color = p.muted2, modifier = Modifier.padding(12.dp))
                 }
             }
         }
@@ -246,13 +246,13 @@ fun SidebarContent(
         ) {
             Box(
                 Modifier
-                    .size(31.dp)
+                    .size(36.dp)
                     .background(p.surface3, RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     shellState.username.take(2).uppercase(),
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.W800,
                     color = p.text,
                 )
@@ -260,7 +260,7 @@ fun SidebarContent(
             Text(
                 shellState.username,
                 modifier = Modifier.weight(1f),
-                fontSize = 13.sp,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.W600,
                 color = p.text,
                 maxLines = 1,
@@ -268,12 +268,12 @@ fun SidebarContent(
             )
             Box(
                 Modifier
-                    .size(32.dp)
+                    .size(40.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .clickable { viewModel.signOut() },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Sign out", tint = p.muted, modifier = Modifier.size(17.dp))
+                Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Sign out", tint = p.muted, modifier = Modifier.size(19.dp))
             }
         }
     }
@@ -347,8 +347,8 @@ fun SidebarContent(
             ) {
                 Icon(Icons.Filled.Delete, contentDescription = null, tint = p.red, modifier = Modifier.size(25.dp))
                 Column {
-                    Text("${pool.cardCount} cards will be deleted", fontSize = 13.sp, fontWeight = FontWeight.W700, color = p.text)
-                    Text("This action cannot be undone.", fontSize = 10.sp, color = p.muted)
+                    Text("${pool.cardCount} cards will be deleted", fontSize = 14.sp, fontWeight = FontWeight.W700, color = p.text)
+                    Text("This action cannot be undone.", fontSize = 11.sp, color = p.muted)
                 }
             }
             error?.let { FormError(it) }
@@ -399,9 +399,9 @@ fun SidebarContent(
             ) {
                 PoolDot(poolAccentColor(source.accent, p), size = 14)
                 Column {
-                    Text("Source pool", fontSize = 10.sp, color = p.muted)
-                    Text(source.name, fontSize = 13.sp, fontWeight = FontWeight.W700, color = p.text)
-                    Text("${source.cardCount} cards", fontSize = 10.sp, color = p.muted)
+                    Text("Source pool", fontSize = 11.sp, color = p.muted)
+                    Text(source.name, fontSize = 14.sp, fontWeight = FontWeight.W700, color = p.text)
+                    Text("${source.cardCount} cards", fontSize = 11.sp, color = p.muted)
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -423,9 +423,9 @@ fun SidebarContent(
                     Icon(Icons.Filled.Warning, contentDescription = null, tint = p.orange, modifier = Modifier.size(17.dp))
                     Text(
                         "Duplicate words are consolidated. The more mature schedule is retained and the earlier due date wins.",
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         color = p.orange,
-                        lineHeight = 16.sp,
+                        lineHeight = 17.sp,
                     )
                 }
             }
@@ -477,7 +477,7 @@ private fun NavLink(
             .clip(RoundedCornerShape(11.dp))
             .background(if (active) p.primaryBg else Color.Transparent)
             .clickable(onClick = onClick)
-            .height(44.dp)
+            .height(52.dp)
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -486,13 +486,13 @@ private fun NavLink(
             icon,
             contentDescription = null,
             tint = iconTint ?: if (active) p.primary2 else p.muted,
-            modifier = Modifier.size(19.dp),
+            modifier = Modifier.size(21.dp),
         )
         Text(
             label,
             modifier = Modifier.weight(1f),
             color = if (active) p.text else p.muted,
-            fontSize = 14.sp,
+            fontSize = 15.sp,
             fontWeight = FontWeight.W600,
         )
         if (badge != null) {
@@ -502,7 +502,7 @@ private fun NavLink(
                     .padding(horizontal = 7.dp, vertical = 4.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(badge.toString(), fontSize = 11.sp, fontWeight = FontWeight.W700, color = p.text)
+                Text(badge.toString(), fontSize = 12.sp, fontWeight = FontWeight.W700, color = p.text)
             }
         }
     }
@@ -526,7 +526,7 @@ private fun PoolMenuItem(
         horizontalArrangement = Arrangement.spacedBy(9.dp),
     ) {
         Icon(icon, contentDescription = null, tint = if (danger) p.red else p.text, modifier = Modifier.size(16.dp))
-        Text(label, fontSize = 13.sp, color = if (danger) p.red else p.text)
+        Text(label, fontSize = 14.sp, color = if (danger) p.red else p.text)
     }
 }
 
@@ -565,7 +565,7 @@ private fun PoolFormModal(
             ) {
                 Text(
                     "POOL COLOR",
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.W700,
                     letterSpacing = 1.sp,
                     color = p.muted,
@@ -574,7 +574,7 @@ private fun PoolFormModal(
                     POOL_ACCENTS.forEach { (accentName, color) ->
                         Box(
                             Modifier
-                                .size(31.dp)
+                                .size(38.dp)
                                 .clip(RoundedCornerShape(10.dp))
                                 .background(p.surface, RoundedCornerShape(10.dp))
                                 .border(
@@ -585,7 +585,7 @@ private fun PoolFormModal(
                                 .clickable { accent = accentName },
                             contentAlignment = Alignment.Center,
                         ) {
-                            Box(Modifier.size(17.dp).background(color, RoundedCornerShape(6.dp)))
+                            Box(Modifier.size(20.dp).background(color, RoundedCornerShape(6.dp)))
                         }
                     }
                 }

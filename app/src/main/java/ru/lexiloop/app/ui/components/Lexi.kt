@@ -95,7 +95,7 @@ fun LexiButton(
             .background(background, shape)
             .border(1.dp, borderColor, shape)
             .clickable(enabled = enabled, onClick = onClick)
-            .defaultMinSize(minHeight = if (big) 46.dp else 40.dp)
+            .defaultMinSize(minHeight = if (big) 52.dp else 48.dp)
             .padding(
                 horizontal = when {
                     kind == ButtonKind.TextLink -> 2.dp
@@ -106,15 +106,15 @@ fun LexiButton(
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        leadingIcon?.let { Icon(it, contentDescription = null, tint = contentColor, modifier = Modifier.size(17.dp)) }
+        leadingIcon?.let { Icon(it, contentDescription = null, tint = contentColor, modifier = Modifier.size(18.dp)) }
         Text(
             text,
             color = contentColor,
-            fontSize = 14.sp,
+            fontSize = 15.sp,
             fontWeight = FontWeight.W700,
             maxLines = 1,
         )
-        trailingIcon?.let { Icon(it, contentDescription = null, tint = contentColor, modifier = Modifier.size(17.dp)) }
+        trailingIcon?.let { Icon(it, contentDescription = null, tint = contentColor, modifier = Modifier.size(18.dp)) }
     }
 }
 
@@ -129,7 +129,7 @@ fun LexiIconButton(
     val p = LocalPalette.current
     Box(
         modifier = modifier
-            .size(40.dp)
+            .size(44.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(p.surface, RoundedCornerShape(12.dp))
             .border(1.dp, p.border, RoundedCornerShape(12.dp))
@@ -144,9 +144,9 @@ fun LexiIconButton(
 fun FieldLabel(text: String, sub: String? = null) {
     val p = LocalPalette.current
     Column {
-        Text(text, fontSize = 12.sp, fontWeight = FontWeight.W600, color = p.muted)
+        Text(text, fontSize = 13.sp, fontWeight = FontWeight.W600, color = p.muted)
         if (sub != null) {
-            Text(sub, fontSize = 10.sp, color = p.muted2)
+            Text(sub, fontSize = 11.sp, color = p.muted2)
         }
     }
 }
@@ -158,7 +158,7 @@ fun LexiTextField(
     modifier: Modifier = Modifier,
     placeholder: String = "",
     singleLine: Boolean = true,
-    minHeight: Int = 42,
+    minHeight: Int = 50,
     password: Boolean = false,
     monospace: Boolean = false,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
@@ -171,7 +171,7 @@ fun LexiTextField(
     val shape = RoundedCornerShape(10.dp)
     val textStyle = TextStyle(
         color = p.text,
-        fontSize = 15.sp,
+        fontSize = 16.sp,
         fontFamily = if (monospace) androidx.compose.ui.text.font.FontFamily.Monospace else MaterialTheme.typography.bodyMedium.fontFamily,
     )
     BasicTextField(
@@ -192,11 +192,11 @@ fun LexiTextField(
                     .background(p.surface2, shape)
                     .border(1.dp, if (focused) p.primary else p.border, shape)
                     .defaultMinSize(minHeight = minHeight.dp)
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
                 contentAlignment = if (singleLine) Alignment.CenterStart else Alignment.TopStart,
             ) {
                 if (value.isEmpty()) {
-                    Text(placeholder, color = p.muted2, fontSize = 15.sp, maxLines = if (singleLine) 1 else 3)
+                    Text(placeholder, color = p.muted2, fontSize = 16.sp, maxLines = if (singleLine) 1 else 3)
                 }
                 inner()
             }
@@ -210,7 +210,7 @@ fun LexiTextArea(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     placeholder: String = "",
-    minHeight: Int = 84,
+    minHeight: Int = 100,
 ) {
     LexiTextField(
         value = value,
@@ -230,7 +230,7 @@ fun Badge(text: String, icon: ImageVector? = null) {
             .clip(CircleShape)
             .background(p.primaryBg, CircleShape)
             .border(1.dp, p.primary.copy(alpha = 0.35f), CircleShape)
-            .padding(horizontal = 11.dp, vertical = 7.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(7.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -238,7 +238,7 @@ fun Badge(text: String, icon: ImageVector? = null) {
         Text(
             text.uppercase(),
             color = p.primary2,
-            fontSize = 11.sp,
+            fontSize = 12.sp,
             fontWeight = FontWeight.W700,
             letterSpacing = 0.7.sp,
         )
@@ -271,7 +271,7 @@ fun Eyebrow(text: String) {
     val p = LocalPalette.current
     Text(
         text.uppercase(),
-        fontSize = 10.sp,
+        fontSize = 11.sp,
         fontWeight = FontWeight.W700,
         letterSpacing = 1.5.sp,
         color = p.muted,
@@ -313,8 +313,8 @@ fun StatCard(
         modifier = modifier
             .background(if (accent) p.primaryBg.compositeOverSurface(p) else p.surface, shape)
             .border(1.dp, if (accent) p.primary.copy(alpha = 0.28f) else p.border, shape)
-            .padding(14.dp)
-            .heightIn(min = 90.dp),
+            .padding(16.dp)
+            .heightIn(min = 100.dp),
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
@@ -325,8 +325,8 @@ fun StatCard(
             color = p.text,
         )
         Spacer(Modifier.height(4.dp))
-        Text(label, fontSize = 13.sp, fontWeight = FontWeight.W700, color = p.text)
-        Text(hint, fontSize = 11.sp, color = p.muted)
+        Text(label, fontSize = 14.sp, fontWeight = FontWeight.W700, color = p.text)
+        Text(hint, fontSize = 12.sp, color = p.muted)
     }
 }
 
@@ -365,20 +365,20 @@ fun EmptyState(
             Icon(icon, contentDescription = null, tint = p.primary2, modifier = Modifier.size(24.dp))
         }
         Spacer(Modifier.height(12.dp))
-        Text(title, fontSize = 15.sp, fontWeight = FontWeight.W700, color = p.text, textAlign = TextAlign.Center)
+        Text(title, fontSize = 16.sp, fontWeight = FontWeight.W700, color = p.text, textAlign = TextAlign.Center)
         Spacer(Modifier.height(6.dp))
         Text(
             text,
-            fontSize = 12.sp,
+            fontSize = 13.sp,
             color = p.muted,
             textAlign = TextAlign.Center,
-            lineHeight = 18.sp,
+            lineHeight = 19.sp,
         )
     }
 }
 
 @Composable
-fun Spinner(size: Int = 31) {
+fun Spinner(size: Int = 34) {
     val p = LocalPalette.current
     val transition = rememberInfiniteTransition(label = "spinner")
     val angle by transition.animateFloat(
@@ -406,7 +406,7 @@ fun LoaderView(text: String, modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Spinner()
-        Text(text, fontSize = 12.sp, color = p.muted)
+        Text(text, fontSize = 13.sp, color = p.muted)
     }
 }
 
@@ -418,9 +418,9 @@ fun FormError(text: String, modifier: Modifier = Modifier) {
         modifier = modifier
             .fillMaxWidth()
             .background(p.red.copy(alpha = 0.10f), RoundedCornerShape(9.dp))
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = 14.dp, vertical = 12.dp),
         color = p.red,
-        fontSize = 12.sp,
+        fontSize = 13.sp,
     )
 }
 
@@ -441,7 +441,7 @@ fun StatusPill(text: String, color: Color, background: Color) {
             .background(background, RoundedCornerShape(7.dp))
             .padding(horizontal = 8.dp, vertical = 5.dp),
         color = color,
-        fontSize = 9.sp,
+        fontSize = 10.sp,
         fontWeight = FontWeight.W700,
         letterSpacing = 0.8.sp,
     )
@@ -463,7 +463,7 @@ fun ChipRow(items: List<String>, modifier: Modifier = Modifier) {
                     .background(p.surface3, RoundedCornerShape(7.dp))
                     .border(1.dp, p.border, RoundedCornerShape(7.dp))
                     .padding(horizontal = 8.dp, vertical = 5.dp),
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 color = p.text,
             )
         }
@@ -483,13 +483,14 @@ fun LexiCheckRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
             .clickable { onCheckedChange(!checked) }
+            .defaultMinSize(minHeight = 44.dp)
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Box(
             Modifier
-                .size(20.dp)
+                .size(24.dp)
                 .background(if (checked) p.primary else p.surface2, RoundedCornerShape(6.dp))
                 .border(1.dp, if (checked) p.primary else p.border2, RoundedCornerShape(6.dp)),
             contentAlignment = Alignment.Center,
@@ -499,14 +500,14 @@ fun LexiCheckRow(
                     Icons.Filled.Check,
                     contentDescription = null,
                     tint = Color.White,
-                    modifier = Modifier.size(14.dp),
+                    modifier = Modifier.size(16.dp),
                 )
             }
         }
         Column {
-            Text(label, fontSize = 13.sp, color = p.text)
+            Text(label, fontSize = 14.sp, color = p.text)
             if (sub != null) {
-                Text(sub, fontSize = 10.sp, color = p.muted2)
+                Text(sub, fontSize = 11.sp, color = p.muted2)
             }
         }
     }
@@ -517,8 +518,8 @@ fun LexiSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     val p = LocalPalette.current
     Box(
         modifier = Modifier
-            .width(44.dp)
-            .height(26.dp)
+            .width(52.dp)
+            .height(30.dp)
             .clip(CircleShape)
             .background(if (checked) p.primary else p.surface3, CircleShape)
             .border(1.dp, if (checked) p.primary else p.border2, CircleShape)
@@ -528,7 +529,7 @@ fun LexiSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     ) {
         Box(
             Modifier
-                .size(20.dp)
+                .size(24.dp)
                 .background(Color.White, CircleShape),
         )
     }
@@ -536,7 +537,7 @@ fun LexiSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
 
 /** A progress track like `.study-progress i` / `.bulk-progress-track`. */
 @Composable
-fun ProgressTrack(progress: Float, modifier: Modifier = Modifier, height: Int = 5) {
+fun ProgressTrack(progress: Float, modifier: Modifier = Modifier, height: Int = 6) {
     val p = LocalPalette.current
     Box(
         modifier = modifier

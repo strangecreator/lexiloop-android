@@ -75,7 +75,7 @@ fun pagePadding(horizontal: Int = 14): PaddingValues {
     return PaddingValues(
         start = horizontal.dp,
         end = horizontal.dp,
-        top = statusBar + 64.dp,
+        top = statusBar + 68.dp,
         bottom = navBar + 45.dp,
     )
 }
@@ -160,7 +160,7 @@ private fun AppShell(shell: ShellViewModel) {
                     Text(
                         event.message,
                         modifier = Modifier.padding(start = 9.dp),
-                        fontSize = 12.sp,
+                        fontSize = 13.sp,
                         color = p.text,
                     )
                 }

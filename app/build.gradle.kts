@@ -15,16 +15,29 @@ android {
         applicationId = "ru.lexiloop.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
 
         buildConfigField("String", "API_BASE_URL", "\"https://lexiloop.ru\"")
+    }
+
+    signingConfigs {
+        // Self-signed key used for the sideloaded release APK. Overridable via
+        // env vars so a private keystore can be swapped in without code changes.
+        create("release") {
+            storeFile = file(System.getenv("LEXILOOP_KEYSTORE") ?: "$rootDir/signing/lexiloop-release.p12")
+            storeType = "PKCS12"
+            storePassword = System.getenv("LEXILOOP_KEYSTORE_PASSWORD") ?: "lexiloop-release"
+            keyAlias = System.getenv("LEXILOOP_KEY_ALIAS") ?: "lexiloop"
+            keyPassword = System.getenv("LEXILOOP_KEY_PASSWORD") ?: "lexiloop-release"
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -75,6 +88,10 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
 
     implementation(libs.coil.compose)
+
+    // Installs the baseline profiles bundled with Compose/AndroidX so release
+    // builds get ahead-of-time compiled hot paths even when sideloaded.
+    implementation(libs.androidx.profileinstaller)
 
     testImplementation(libs.junit)
 }
