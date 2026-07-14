@@ -26,6 +26,19 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
+import kotlinx.coroutines.launch
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.runtime.mutableStateOf
@@ -75,6 +88,12 @@ fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val padding = pagePadding()
 
+    // Swipe-to-advance state: hoisted above the early returns so remember
+    // order stays stable across loading/empty/card phases.
+    val swipeScope = rememberCoroutineScope()
+    val swipeOffset = remember { Animatable(0f) }
+    var cardWidth by remember { mutableStateOf(0) }
+
     if (state.loading && state.session == null) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             LoaderView("Choosing the right card…")
@@ -119,6 +138,19 @@ fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
     val session = state.session ?: return
     val judge = state.judge
     val answered = judge != null || state.revealed
+    // The card can be swiped away only once the task is fully completed.
+    val canSwipe = answered && state.reviewed && !state.busy
+
+    // A freshly loaded card slides in from the right after a swipe-out.
+    LaunchedEffect(card.id) {
+        if (swipeOffset.value != 0f) {
+            swipeOffset.snapTo(cardWidth * 0.85f)
+            swipeOffset.animateTo(
+                0f,
+                spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
+            )
+        }
+    }
 
     // .study-card border color mirrors correct/wrong state
     val cardBorder by animateColorAsState(
@@ -209,10 +241,47 @@ fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
         }
         Spacer(Modifier.height(18.dp))
 
-        // .study-card
+        // .study-card — swipe left to advance once the task is complete.
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .onSizeChanged { cardWidth = it.width }
+                .graphicsLayer {
+                    val width = cardWidth.toFloat().coerceAtLeast(1f)
+                    translationX = swipeOffset.value
+                    rotationZ = (swipeOffset.value / width) * 3.5f
+                    alpha = 1f - (kotlin.math.abs(swipeOffset.value) / width) * 0.35f
+                }
+                .draggable(
+                    orientation = Orientation.Horizontal,
+                    enabled = canSwipe,
+                    state = rememberDraggableState { delta ->
+                        // Follow the finger; rightward drags rubber-band.
+                        val resisted = if (swipeOffset.value > 0f) delta / 3f else delta
+                        val next = (swipeOffset.value + resisted)
+                            .coerceIn(-cardWidth.toFloat(), cardWidth * 0.18f)
+                        swipeScope.launch { swipeOffset.snapTo(next) }
+                    },
+                    onDragStopped = { velocity ->
+                        val width = cardWidth.toFloat().coerceAtLeast(1f)
+                        val advance = swipeOffset.value < -width * 0.3f ||
+                            (velocity < -1600f && swipeOffset.value < -width * 0.08f)
+                        if (advance) {
+                            // Grabbing the card mid-flight cancels this animation
+                            // (and the advance) — the finger keeps control.
+                            swipeOffset.animateTo(
+                                -width * 1.12f,
+                                tween(durationMillis = 200, easing = FastOutLinearInEasing),
+                            )
+                            viewModel.next()
+                        } else {
+                            swipeOffset.animateTo(
+                                0f,
+                                spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMedium),
+                            )
+                        }
+                    },
+                )
                 .clip(RoundedCornerShape(18.dp))
                 .background(p.surface, RoundedCornerShape(18.dp))
                 .border(1.dp, cardBorder, RoundedCornerShape(18.dp)),

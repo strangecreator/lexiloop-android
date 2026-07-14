@@ -77,6 +77,9 @@ fun OverviewScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val pools by viewModel.pools.collectAsStateWithLifecycle()
 
+    // Refetch on every visit, like the site's page mount.
+    androidx.compose.runtime.LaunchedEffect(Unit) { viewModel.refresh() }
+
     if (state.loading) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             LoaderView("Loading your overview…")

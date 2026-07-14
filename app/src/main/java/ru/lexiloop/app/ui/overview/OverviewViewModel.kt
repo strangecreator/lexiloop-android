@@ -32,17 +32,33 @@ class OverviewViewModel @Inject constructor(
     private val _state = MutableStateFlow(OverviewUiState())
     val state: StateFlow<OverviewUiState> = _state
 
-    init {
-        refresh()
-    }
+    private var refreshJob: kotlinx.coroutines.Job? = null
 
+    /**
+     * Called on every visit to the page (like the site refetching on mount).
+     * Transient network failures retry with a short backoff — the very first
+     * fetch after install can race the device's app-verification window.
+     */
     fun refresh() {
-        viewModelScope.launch {
-            when (val result = repository.overview()) {
-                is ApiResult.Success -> _state.update { it.copy(loading = false, stats = result.data) }
-                is ApiResult.Error -> {
-                    _state.update { it.copy(loading = false) }
-                    toastBus.error(result.message)
+        if (refreshJob?.isActive == true) return
+        refreshJob = viewModelScope.launch {
+            var attempts = 3
+            while (attempts > 0) {
+                attempts--
+                when (val result = repository.overview()) {
+                    is ApiResult.Success -> {
+                        _state.update { it.copy(loading = false, stats = result.data) }
+                        attempts = 0
+                    }
+                    is ApiResult.Error -> {
+                        if (result.code == null && attempts > 0) {
+                            kotlinx.coroutines.delay(1500)
+                            continue
+                        }
+                        _state.update { it.copy(loading = false) }
+                        toastBus.error(result.message)
+                        attempts = 0
+                    }
                 }
             }
             when (val pools = repository.pools()) {
