@@ -67,6 +67,23 @@ object Recall {
         }.joinToString(" ")
     }
 
+    /**
+     * The masked term split into per-word chunks, so the hint block can wrap
+     * long phrases at word boundaries instead of overflowing.
+     */
+    fun maskedWords(term: String, revealed: Int): List<String> {
+        var remaining = revealed
+        return base(term).split(' ').filter { it.isNotEmpty() }.map { word ->
+            word.map { ch ->
+                when {
+                    !ch.isLetter() -> ch
+                    remaining > 0 -> { remaining -= 1; ch }
+                    else -> '_'
+                }
+            }.joinToString(" ")
+        }
+    }
+
     /** Replaces the term (and simple inflections) with blanks in example text. */
     fun maskAnswer(text: String, card: FlashcardDto): String {
         val baseTerm = base(card.term)

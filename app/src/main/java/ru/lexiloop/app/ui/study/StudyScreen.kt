@@ -399,6 +399,7 @@ fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
                     RecallHints(
                         card = card,
                         revealed = state.hintLetters,
+                        answered = answered,
                         onReveal = viewModel::revealHintLetter,
                     )
                 }
@@ -529,7 +530,7 @@ private fun PosTag(text: String) {
 /** .recall-hints: masked examples, collocations, and the letter-hint button. */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun RecallHints(card: FlashcardDto, revealed: Int, onReveal: () -> Unit) {
+private fun RecallHints(card: FlashcardDto, revealed: Int, answered: Boolean, onReveal: () -> Unit) {
     val p = LocalPalette.current
     val examples = card.exampleSentences().take(3)
         .map { Recall.maskAnswer(it.sentence, card) }
@@ -559,24 +560,39 @@ private fun RecallHints(card: FlashcardDto, revealed: Int, onReveal: () -> Unit)
                 color = p.muted,
             )
         }
-        // .letter-hint
-        Row(
+        // .letter-hint — wraps at word boundaries; fully revealed once answered.
+        val shownLetters = if (answered) total else revealed
+        val letterSize = if (Recall.base(card.term).length > 24) 12.sp else 14.sp
+        androidx.compose.foundation.layout.FlowRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(9.dp))
                 .border(1.dp, p.border2, RoundedCornerShape(9.dp))
-                .clickable(enabled = revealed < total, onClick = onReveal)
+                .clickable(enabled = !answered && revealed < total, onClick = onReveal)
                 .padding(horizontal = 10.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text(
-                Recall.maskedTerm(card.term, revealed),
-                fontFamily = FontFamily.Monospace,
-                fontSize = 14.sp,
-                color = p.text,
-            )
-            Text("$revealed/$total", fontSize = 10.sp, color = p.muted2)
+            Recall.maskedWords(card.term, shownLetters).forEach { word ->
+                Text(
+                    word,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = letterSize,
+                    color = p.text,
+                    softWrap = false,
+                    maxLines = 1,
+                )
+            }
+            Box(
+                modifier = Modifier.align(Alignment.CenterVertically),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    if (answered) "$total/$total" else "$revealed/$total",
+                    fontSize = 10.sp,
+                    color = p.muted2,
+                )
+            }
         }
         if (examples.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
