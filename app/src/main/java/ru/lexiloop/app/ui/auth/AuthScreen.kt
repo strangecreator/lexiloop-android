@@ -25,7 +25,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -80,7 +79,12 @@ fun AuthScreen(viewModel: AuthViewModel = hiltViewModel()) {
                     ),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Filled.Layers, contentDescription = null, tint = Color.White, modifier = Modifier.size(21.dp))
+                Icon(
+                    androidx.compose.ui.res.painterResource(ru.lexiloop.app.R.drawable.ic_layers3),
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(21.dp),
+                )
             }
             Spacer(Modifier.width(10.dp))
             Text("LexiLoop", fontFamily = Manrope, fontSize = 19.sp, fontWeight = FontWeight.W800, color = p.text)

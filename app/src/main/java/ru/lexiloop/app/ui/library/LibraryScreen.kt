@@ -52,6 +52,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.lexiloop.app.data.api.FlashcardDto
 import ru.lexiloop.app.ui.components.Badge
+import ru.lexiloop.app.ui.components.CardImageControls
 import ru.lexiloop.app.ui.components.ButtonKind
 import ru.lexiloop.app.ui.components.ChipRow
 import ru.lexiloop.app.ui.components.EmptyState
@@ -451,7 +452,7 @@ private fun LibraryCard(
                     }
                 }
                 DetailBlock("IMAGE") {
-                    CardImageBlock(
+                    CardImageControls(
                         card = card,
                         busy = imageBusy,
                         onLink = onImageLink,
@@ -481,89 +482,6 @@ private fun LibraryCard(
                 }
             }
         }
-    }
-}
-
-/** The site's CardImageControls: preview, link fetch, file upload, remove. */
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
-@Composable
-private fun CardImageBlock(
-    card: FlashcardDto,
-    busy: Boolean,
-    onLink: (String) -> Unit,
-    onUpload: (android.net.Uri) -> Unit,
-    onRemove: () -> Unit,
-) {
-    val p = LocalPalette.current
-    var link by remember(card.id) { mutableStateOf("") }
-    val picker = androidx.activity.compose.rememberLauncherForActivityResult(
-        androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia(),
-    ) { uri -> uri?.let(onUpload) }
-
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        if (card.hasImage) {
-            coil.compose.AsyncImage(
-                model = ru.lexiloop.app.data.repo.CardImages.imageUrl(card),
-                contentDescription = "Illustration for ${card.term}",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 220.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .border(1.dp, p.border, RoundedCornerShape(12.dp)),
-                contentScale = androidx.compose.ui.layout.ContentScale.FillWidth,
-            )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.weight(1f)) {
-                LexiTextField(
-                    value = link,
-                    onValueChange = { link = it },
-                    placeholder = "Image link, or an image page",
-                )
-            }
-            LexiButton(
-                if (busy) "Working…" else "Fetch",
-                kind = ButtonKind.Secondary,
-                enabled = !busy && link.isNotBlank(),
-                onClick = {
-                    onLink(link)
-                    link = ""
-                },
-            )
-        }
-        androidx.compose.foundation.layout.FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(7.dp),
-            verticalArrangement = Arrangement.spacedBy(7.dp),
-        ) {
-            LexiButton(
-                if (card.hasImage) "Replace file" else "Upload file",
-                kind = ButtonKind.Secondary,
-                leadingIcon = Icons.Filled.Image,
-                enabled = !busy,
-                onClick = {
-                    picker.launch(
-                        androidx.activity.result.PickVisualMediaRequest(
-                            androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly,
-                        ),
-                    )
-                },
-            )
-            if (card.hasImage) {
-                LexiButton(
-                    "Remove",
-                    kind = ButtonKind.DangerText,
-                    leadingIcon = Icons.Filled.Delete,
-                    enabled = !busy,
-                    onClick = onRemove,
-                )
-            }
-        }
-        Text(
-            "Any page link works — even a copied Google or Yandex image-search page: the image assistant finds the best matching picture when the link isn't a file.",
-            fontSize = 11.sp,
-            lineHeight = 15.sp,
-            color = p.muted2,
-        )
     }
 }
 

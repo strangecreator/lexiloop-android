@@ -26,6 +26,13 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import ru.lexiloop.app.ui.components.CardImageControls
+import ru.lexiloop.app.ui.components.LexiModal
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Refresh
@@ -211,12 +218,14 @@ fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
                 .border(1.dp, cardBorder, RoundedCornerShape(18.dp)),
         ) {
             // .card-topline
+            var imageEditor by remember(card.id) { mutableStateOf(false) }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(58.dp)
                     .padding(horizontal = 20.dp),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
                     when (state.direction) {
@@ -230,11 +239,43 @@ fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
                     fontWeight = FontWeight.W600,
                     color = p.muted,
                 )
+                // .topline-image-button
+                if (!state.offline) {
+                    Box(
+                        Modifier
+                            .size(34.dp)
+                            .clip(RoundedCornerShape(9.dp))
+                            .clickable { imageEditor = true },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            if (card.hasImage) Icons.Filled.Image else Icons.Filled.AddPhotoAlternate,
+                            contentDescription = if (card.hasImage) "Change this card's image" else "Add an image to this card",
+                            tint = p.muted,
+                            modifier = Modifier.size(17.dp),
+                        )
+                    }
+                }
                 StatusPill(
                     if (state.practiceMode) "practice" else card.schedule?.state ?: "new",
                     color = p.muted,
                     background = p.surface3,
                 )
+            }
+            if (imageEditor) {
+                LexiModal(
+                    title = "Card image",
+                    subtitle = "Shown on the flashcard for “${card.term}”.",
+                    onClose = { imageEditor = false },
+                ) {
+                    CardImageControls(
+                        card = card,
+                        busy = state.imageBusy,
+                        onLink = viewModel::setImageFromLink,
+                        onUpload = viewModel::uploadImage,
+                        onRemove = viewModel::removeImage,
+                    )
+                }
             }
             Box(Modifier.fillMaxWidth().height(1.dp).background(p.border))
 

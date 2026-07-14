@@ -30,7 +30,6 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Paid
@@ -126,7 +125,12 @@ fun SidebarContent(
                     ),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Filled.Layers, contentDescription = null, tint = Color.White, modifier = Modifier.size(21.dp))
+                Icon(
+                    androidx.compose.ui.res.painterResource(ru.lexiloop.app.R.drawable.ic_layers3),
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(21.dp),
+                )
             }
             Spacer(Modifier.width(11.dp))
             Column(Modifier.weight(1f)) {
@@ -298,7 +302,7 @@ fun SidebarContent(
                 when (val result = repository.createPool(name, description)) {
                     is ApiResult.Success -> {
                         creating = false
-                        viewModel.refreshShell()
+                        viewModel.loadShell()
                         viewModel.selectPool(result.data.id)
                         null
                     }
@@ -318,7 +322,7 @@ fun SidebarContent(
                 when (val result = repository.patchPool(pool.id, PoolWriteBody(name = name, description = description, accent = accent))) {
                     is ApiResult.Success -> {
                         editing = null
-                        viewModel.refreshShell()
+                        viewModel.loadShell()
                         viewModel.toastBus.success("Pool updated")
                         null
                     }
@@ -360,7 +364,7 @@ fun SidebarContent(
                         when (val result = repository.deletePool(pool.id)) {
                             is ApiResult.Success -> {
                                 deleting = null
-                                viewModel.refreshShell()
+                                viewModel.loadShell()
                                 viewModel.toastBus.success("Deleted “${pool.name}”")
                             }
                             is ApiResult.Error -> {
@@ -443,7 +447,7 @@ fun SidebarContent(
                                 is ApiResult.Success -> {
                                     transfer = null
                                     viewModel.selectPool(target)
-                                    viewModel.refreshShell()
+                                    viewModel.loadShell()
                                     viewModel.toastBus.success(
                                         if (mode == "copy") "Cards copied without changing the source pool." else "Pools merged.",
                                     )

@@ -19,7 +19,7 @@ data class AuthUiState(
     val error: String? = null,
 ) {
     val canSubmit: Boolean
-        get() = !loading && username.trim().length >= 3 && password.length >= 8
+        get() = !loading && username.isNotBlank() && password.isNotEmpty()
 }
 
 @HiltViewModel
@@ -39,6 +39,18 @@ class AuthViewModel @Inject constructor(
     fun submit() {
         val current = _state.value
         if (!current.canSubmit) return
+        if (current.registerMode) {
+            // Mirror the site's form constraints with visible messages.
+            val problem = when {
+                current.username.trim().length < 3 -> "Username must be at least 3 characters."
+                current.password.length < 8 -> "Password must be at least 8 characters."
+                else -> null
+            }
+            if (problem != null) {
+                _state.update { it.copy(error = problem) }
+                return
+            }
+        }
         _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             val result = if (current.registerMode) {

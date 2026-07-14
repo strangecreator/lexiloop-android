@@ -35,6 +35,7 @@ data class StudyUiState(
     val roundTotal: Int = 0,
     val responseMs: Long? = null,
     val offline: Boolean = false,
+    val imageBusy: Boolean = false,
 ) {
     val card: FlashcardDto? get() = session?.card
     val direction: String get() = session?.direction ?: "term_to_definition"
@@ -100,6 +101,7 @@ class StudyViewModel @Inject constructor(
     private val toastBus: ToastBus,
     private val offlineCache: ru.lexiloop.app.data.offline.OfflineCache,
     private val networkMonitor: ru.lexiloop.app.data.offline.NetworkMonitor,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(StudyUiState())
@@ -222,6 +224,8 @@ class StudyViewModel @Inject constructor(
         return NextCardResponse(
             card = card,
             direction = "definition_to_term",
+            // The server sends short_definition as the prompt for this direction.
+            prompt = card?.shortDefinition?.takeIf { it.isNotEmpty() } ?: card?.definition,
             mode = if (due) "due" else "practice",
             message = if (card == null && due) "No cached cards are due right now." else null,
             practiceComplete = !due && card == null,
@@ -487,6 +491,64 @@ class StudyViewModel @Inject constructor(
     }
 
     fun reload() = load(due = !_state.value.practiceMode, resetRound = true)
+
+    // --- Card image editing (the site's topline image button) ---
+
+    fun setImageFromLink(url: String) {
+        val card = _state.value.card ?: return
+        val link = url.trim()
+        if (link.isEmpty() || _state.value.imageBusy) return
+        _state.update { it.copy(imageBusy = true) }
+        viewModelScope.launch {
+            finishImage(repository.setCardImageFromLink(card.id, link), "Image saved")
+        }
+    }
+
+    fun uploadImage(uri: android.net.Uri) {
+        val card = _state.value.card ?: return
+        if (_state.value.imageBusy) return
+        _state.update { it.copy(imageBusy = true) }
+        viewModelScope.launch {
+            val bytes = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                runCatching {
+                    appContext.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                }.getOrNull()
+            }
+            if (bytes == null || bytes.isEmpty()) {
+                _state.update { it.copy(imageBusy = false) }
+                toastBus.error("Could not read that image.")
+                return@launch
+            }
+            finishImage(repository.uploadCardImage(card.id, bytes, "upload.jpg"), "Image saved")
+        }
+    }
+
+    fun removeImage() {
+        val card = _state.value.card ?: return
+        if (_state.value.imageBusy) return
+        _state.update { it.copy(imageBusy = true) }
+        viewModelScope.launch {
+            finishImage(repository.removeCardImage(card.id), "Image removed")
+        }
+    }
+
+    private fun finishImage(result: ApiResult<FlashcardDto>, successMessage: String) {
+        when (result) {
+            is ApiResult.Success -> {
+                _state.update { current ->
+                    current.copy(
+                        imageBusy = false,
+                        session = current.session?.copy(card = result.data),
+                    )
+                }
+                toastBus.success(successMessage)
+            }
+            is ApiResult.Error -> {
+                _state.update { it.copy(imageBusy = false) }
+                toastBus.error(result.message)
+            }
+        }
+    }
 
     fun pronounce(text: String) {
         player.play(text) { toastBus.error("Pronunciation is unavailable right now.") }

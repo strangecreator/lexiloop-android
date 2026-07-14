@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- lucide layers-3: the site's brand glyph (three stacked layers). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M12.83,2.18a2,2 0 0,0 -1.66,0L2.6,6.08a1,1 0 0,0 0,1.83l8.58,3.91a2,2 0 0,0 1.66,0l8.58,-3.9a1,1 0 0,0 0,-1.83Z"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M6.08,9.5l-3.5,1.6a1,1 0 0,0 0,1.81l8.6,3.91a2,2 0 0,0 1.65,0l8.58,-3.9a1,1 0 0,0 0,-1.83l-3.5,-1.59"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M6.08,14.5l-3.5,1.6a1,1 0 0,0 0,1.81l8.6,3.91a2,2 0 0,0 1.65,0l8.58,-3.9a1,1 0 0,0 0,-1.83l-3.5,-1.59"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+</vector>
