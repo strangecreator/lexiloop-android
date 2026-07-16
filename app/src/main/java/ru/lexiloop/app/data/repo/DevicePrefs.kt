@@ -42,6 +42,9 @@ data class DeviceOverrides(
     val definitionToTermGoodSeconds: Int? = null,
     val termToSentenceEasySeconds: Int? = null,
     val termToSentenceGoodSeconds: Int? = null,
+    // App-only (no site counterpart): scroll the Study answer box above the
+    // keyboard when it opens. Null means the default (on).
+    val scrollToAnswerBox: Boolean? = null,
 ) {
     /** The device's Easy/Good band for a direction, or null to let the server decide. */
     fun timingFor(direction: String): Pair<Int, Int>? = when (direction) {
@@ -73,6 +76,7 @@ data class EffectiveStudyPrefs(
     val definitionToTermGoodSeconds: Int,
     val termToSentenceEasySeconds: Int,
     val termToSentenceGoodSeconds: Int,
+    val scrollToAnswerBox: Boolean,
 ) {
     fun imagesEnabledFor(direction: String): Boolean = showCardImages && when (direction) {
         "definition_to_term" -> showImagesDefinitionToTerm
@@ -107,6 +111,7 @@ fun resolveStudyPrefs(server: SettingsDto, device: DeviceOverrides): EffectiveSt
             ?: server.termToSentenceEasySeconds,
         termToSentenceGoodSeconds = device.termToSentenceGoodSeconds
             ?: server.termToSentenceGoodSeconds,
+        scrollToAnswerBox = device.scrollToAnswerBox ?: true,
     )
 
 /**
@@ -142,6 +147,7 @@ class DevicePrefs @Inject constructor(
     private val d2tGoodKey = intPreferencesKey("device_d2t_good_seconds")
     private val t2sEasyKey = intPreferencesKey("device_t2s_easy_seconds")
     private val t2sGoodKey = intPreferencesKey("device_t2s_good_seconds")
+    private val scrollToAnswerKey = booleanPreferencesKey("device_scroll_to_answer")
 
     val fontScale: StateFlow<Float> = dataStore.data
         .map { it[fontScaleKey] ?: DEFAULT_FONT_SCALE }
@@ -180,6 +186,7 @@ class DevicePrefs @Inject constructor(
                 definitionToTermGoodSeconds = prefs[d2tGoodKey],
                 termToSentenceEasySeconds = prefs[t2sEasyKey],
                 termToSentenceGoodSeconds = prefs[t2sGoodKey],
+                scrollToAnswerBox = prefs[scrollToAnswerKey],
             )
         }
         .catch { emit(DeviceOverrides()) }
@@ -203,6 +210,8 @@ class DevicePrefs @Inject constructor(
     fun setShowImagesTermToSentence(value: Boolean) = set { it[showImagesT2sKey] = value }
 
     fun setImagePrefetchCount(value: Int) = set { it[prefetchKey] = value.coerceIn(0, 10) }
+
+    fun setScrollToAnswerBox(value: Boolean) = set { it[scrollToAnswerKey] = value }
 
     fun setImageAnimations(names: List<String>) =
         set { it[animationsKey] = names.joinToString(",") }

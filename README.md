@@ -38,9 +38,11 @@ The design system is translated 1:1 from the web app's `styles.css`:
   deterministic pick), and upcoming images are prefetched. Once a review is
   saved, the next card is prefetched in the background while the feedback is
   on screen, so "Next task" switches instantly. Enter on the keyboard submits
-  the answer, the answer box scrolls above the soft keyboard when focused,
-  and the queue refetches every time the page opens, so settings changes
-  apply immediately.
+  the answer, the answer box scrolls above the soft keyboard when focused
+  (toggleable, device-local), the card topline carries the site's per-task
+  diagonal-tape texture so task types are distinguishable at a glance, and
+  the queue refetches every time the page opens, so settings changes apply
+  immediately.
 - **Library** — the AI generator panel, server-side search, expandable card
   details (definition, examples, forms, synonyms, collocations, usage notes),
   block/unblock/edit/delete, pagination, full manual card editor, and the

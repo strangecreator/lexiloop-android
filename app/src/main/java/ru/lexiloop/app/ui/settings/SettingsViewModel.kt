@@ -62,6 +62,8 @@ class SettingsViewModel @Inject constructor(
 
     fun setImagePrefetchCount(value: Int) = devicePrefs.setImagePrefetchCount(value)
 
+    fun setScrollToAnswerBox(value: Boolean) = devicePrefs.setScrollToAnswerBox(value)
+
     fun setImageAnimations(names: List<String>) = devicePrefs.setImageAnimations(names)
 
     fun setImageAnimationDuration(name: String, seconds: Double) =

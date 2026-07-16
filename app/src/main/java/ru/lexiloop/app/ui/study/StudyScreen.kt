@@ -58,6 +58,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
@@ -295,12 +296,14 @@ fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
                 .background(p.surface, RoundedCornerShape(18.dp))
                 .border(1.dp, cardBorder, RoundedCornerShape(18.dp)),
         ) {
-            // .card-topline
+            // .card-topline — with the quiet diagonal "tape" keyed by task
+            // type, so a sentence task never reads as a definition task.
             var imageEditor by remember(card.id) { mutableStateOf(false) }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(58.dp)
+                    .taskTape(state.direction, p.border.copy(alpha = 0.42f))
                     .padding(horizontal = 20.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -471,7 +474,7 @@ fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
                             .fillMaxWidth()
                             .bringIntoViewRequester(answerBring)
                             .onFocusEvent { focus ->
-                                if (focus.hasFocus) {
+                                if (focus.hasFocus && prefs.scrollToAnswerBox) {
                                     answerScope.launch {
                                         kotlinx.coroutines.delay(360)
                                         answerBring.bringIntoView()
@@ -561,6 +564,47 @@ fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
         }
     }
 }
+
+/**
+ * The site's `.card-topline.task-*` texture: wide soft diagonal bands in the
+ * border tone. Word → sentence slopes one way, definition → word the other,
+ * and word → definition stays plain — texture instead of color, so it is
+ * visible at a glance without shouting.
+ */
+private fun Modifier.taskTape(direction: String, color: androidx.compose.ui.graphics.Color): Modifier =
+    when (direction) {
+        "term_to_sentence" -> tapeBands(color, mirrored = false)
+        "definition_to_term" -> tapeBands(color, mirrored = true)
+        else -> this
+    }
+
+private fun Modifier.tapeBands(color: androidx.compose.ui.graphics.Color, mirrored: Boolean): Modifier =
+    // The angled strokes overshoot the strip's edges; keep them inside like a
+    // CSS background.
+    clipToBounds().drawBehind {
+        val band = 9.dp.toPx()
+        // 18dp perpendicular pitch, converted to x-spacing for 45° lines.
+        val pitch = 18.dp.toPx() * 1.4142135f
+        var x = -size.height
+        while (x < size.width + size.height) {
+            if (mirrored) {
+                drawLine(
+                    color,
+                    start = androidx.compose.ui.geometry.Offset(x, 0f),
+                    end = androidx.compose.ui.geometry.Offset(x + size.height, size.height),
+                    strokeWidth = band,
+                )
+            } else {
+                drawLine(
+                    color,
+                    start = androidx.compose.ui.geometry.Offset(x, size.height),
+                    end = androidx.compose.ui.geometry.Offset(x + size.height, 0f),
+                    strokeWidth = band,
+                )
+            }
+            x += pitch
+        }
+    }
 
 /** `.queue-chips span` — muted on surface3, like the current site styling. */
 @Composable
