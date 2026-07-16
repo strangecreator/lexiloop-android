@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <data-extraction-rules>
     <cloud-backup>
+        <!-- The auth token must never leave the device through cloud backups. -->
         <exclude domain="file" path="datastore/lexiloop_session.preferences_pb" />
+        <!-- Re-syncable and potentially large; see backup_rules.xml. -->
+        <exclude domain="file" path="offline/" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="file" path="datastore/lexiloop_session.preferences_pb" />
+        <exclude domain="file" path="offline/" />
     </device-transfer>
 </data-extraction-rules>

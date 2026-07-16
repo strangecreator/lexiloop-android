@@ -29,8 +29,22 @@ import javax.inject.Singleton
 @Retention(AnnotationRetention.BINARY)
 annotation class ApplicationScope
 
+/**
+ * The device-preferences store, separate from the session store because the
+ * two have opposite backup policies: the auth token must never leave the
+ * device, while device preferences should survive a reinstall via Android
+ * Auto Backup (see backup_rules.xml / data_extraction_rules.xml).
+ */
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class DevicePrefsStore
+
 private val Context.sessionDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "lexiloop_session",
+)
+
+private val Context.devicePrefsDataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "lexiloop_device_prefs",
 )
 
 @Module
@@ -47,6 +61,12 @@ object AppModule {
     @Singleton
     fun provideDataStore(@ApplicationContext context: Context): DataStore<Preferences> =
         context.sessionDataStore
+
+    @Provides
+    @Singleton
+    @DevicePrefsStore
+    fun provideDevicePrefsDataStore(@ApplicationContext context: Context): DataStore<Preferences> =
+        context.devicePrefsDataStore
 
     @Provides
     @Singleton

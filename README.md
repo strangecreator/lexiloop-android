@@ -65,7 +65,10 @@ The design system is translated 1:1 from the web app's `styles.css`:
   app, then live in DataStore and never overwrite the site's values (task
   types ride along as `?directions=`, timing bands with each review as
   `easy_seconds`/`good_seconds`, prefetch as `?prefetch=` — progress and
-  scheduling stay account-wide either way).
+  scheduling stay account-wide either way). Device preferences sit in their
+  own DataStore file that participates in Android Auto Backup and device
+  transfer, so they survive an uninstall + reinstall; only the session store
+  with the auth token is excluded from backups.
 
 ## Architecture
 

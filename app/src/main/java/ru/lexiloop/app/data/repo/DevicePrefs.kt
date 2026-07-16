@@ -11,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -111,10 +112,15 @@ fun resolveStudyPrefs(server: SettingsDto, device: DeviceOverrides): EffectiveSt
 /**
  * Preferences that belong to this device rather than the account — the text
  * scale plus the [DeviceOverrides]. Server settings stay untouched.
+ *
+ * Stored in their own DataStore file that participates in Android Auto
+ * Backup and device transfer, so they survive an uninstall + reinstall —
+ * unlike the session store, which holds the auth token and is excluded.
  */
 @Singleton
 class DevicePrefs @Inject constructor(
-    private val dataStore: DataStore<Preferences>,
+    @ru.lexiloop.app.di.DevicePrefsStore private val dataStore: DataStore<Preferences>,
+    private val sessionDataStore: DataStore<Preferences>,
     @ApplicationScope private val scope: CoroutineScope,
 ) {
     private val fontScaleKey = floatPreferencesKey("font_scale")
@@ -231,6 +237,35 @@ class DevicePrefs @Inject constructor(
     private fun set(transform: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {
         scope.launch {
             dataStore.edit { transform(it) }
+        }
+    }
+
+    init {
+        scope.launch { migrateFromSessionStore() }
+    }
+
+    /**
+     * Versions up to 0.6.0 kept these keys in the session store (which is
+     * excluded from backups). Move them over once so nothing is lost on the
+     * update that introduced the dedicated file.
+     */
+    private suspend fun migrateFromSessionStore() {
+        try {
+            if (dataStore.data.first().asMap().isNotEmpty()) return
+            val legacy = sessionDataStore.data.first().asMap().filterKeys { key ->
+                key.name == "font_scale" || key.name.startsWith("device_")
+            }
+            if (legacy.isEmpty()) return
+            dataStore.edit { prefs ->
+                legacy.forEach { (key, value) ->
+                    @Suppress("UNCHECKED_CAST")
+                    prefs[key as Preferences.Key<Any>] = value
+                }
+            }
+            sessionDataStore.edit { prefs -> legacy.keys.forEach(prefs::remove) }
+        } catch (_: Exception) {
+            // A failed migration must never block startup; the affected
+            // preferences simply fall back to the account settings.
         }
     }
 

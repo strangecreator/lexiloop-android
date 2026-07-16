@@ -15,8 +15,8 @@ android {
         applicationId = "ru.lexiloop.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 8
-        versionName = "0.6.0"
+        versionCode = 9
+        versionName = "0.7.0"
 
         buildConfigField("String", "API_BASE_URL", "\"https://lexiloop.ru\"")
     }

@@ -169,8 +169,13 @@ fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            // imePadding must sit OUTSIDE verticalScroll: it shrinks the
+            // scroll viewport to the area above the keyboard, which is what
+            // lets bringIntoView place the answer box right above the IME.
+            // Inside the scrollable it only grows the content, and the field
+            // counts as "visible" while actually sitting behind the keyboard.
             .imePadding()
+            .verticalScroll(rememberScrollState())
             .padding(padding),
     ) {
         // .study-progress

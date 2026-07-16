@@ -2,4 +2,9 @@
 <full-backup-content>
     <!-- The auth token must never leave the device through cloud backups. -->
     <exclude domain="file" path="datastore/lexiloop_session.preferences_pb" />
+    <!-- The offline card cache re-syncs on first launch; keeping it out of
+         the backup protects the 25 MB Auto Backup quota so the device
+         preferences (datastore/lexiloop_device_prefs.preferences_pb, included
+         by default) always make it in. -->
+    <exclude domain="file" path="offline/" />
 </full-backup-content>
