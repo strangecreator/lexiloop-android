@@ -63,6 +63,7 @@ import ru.lexiloop.app.ui.theme.lexiPalette
 
 private val UI_ACCENTS = listOf("emerald", "blue", "teal", "indigo", "violet", "rose", "orange")
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     val p = LocalPalette.current
@@ -361,24 +362,27 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 title = "Study experience",
                 subtitle = "Control prompt direction, appearance, and new-card load.",
             ) {
-                SettingsField("Task types", "Due cards rotate through the enabled task types. At least one stays on.") {
+                SettingsField(
+                    "Task types",
+                    "Due cards rotate through the enabled task types. At least one stays on. " +
+                        "Stored on this device — the site keeps its own set, and progress syncs either way.",
+                ) {
                     listOf(
                         "term_to_definition" to "Word → definition",
                         "definition_to_term" to "Definition → word",
                         "term_to_sentence" to "Word → sentence",
                     ).forEach { (id, label) ->
                         LexiCheckRow(
-                            checked = form.studyDirections.contains(id),
+                            checked = device.studyDirections.contains(id),
                             onCheckedChange = { checked ->
-                                viewModel.patch { current ->
-                                    val next = if (checked) {
-                                        listOf("term_to_definition", "definition_to_term", "term_to_sentence")
-                                            .filter { it == id || current.studyDirections.contains(it) }
-                                    } else {
-                                        current.studyDirections.filter { it != id }
-                                    }
-                                    if (next.isEmpty()) current else current.copy(studyDirections = next)
+                                val current = device.studyDirections
+                                val next = if (checked) {
+                                    listOf("term_to_definition", "definition_to_term", "term_to_sentence")
+                                        .filter { it == id || current.contains(it) }
+                                } else {
+                                    current.filter { it != id }
                                 }
+                                if (next.isNotEmpty()) viewModel.setStudyDirections(next)
                             },
                             label = label,
                         )
@@ -420,7 +424,12 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                             )
                         }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // FlowRow: on narrow phones the seventh 38dp swatch would
+                    // otherwise be squeezed by the Row's remaining width.
+                    androidx.compose.foundation.layout.FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         UI_ACCENTS.forEach { accentName ->
                             val swatch = lexiPalette(p.isDark, accentName).primary
                             val active = device.accentColor == accentName

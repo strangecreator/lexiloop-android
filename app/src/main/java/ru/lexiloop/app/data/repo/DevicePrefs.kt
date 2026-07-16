@@ -27,6 +27,7 @@ import javax.inject.Singleton
  */
 data class DeviceOverrides(
     val accentColor: String? = null,
+    val studyDirections: List<String>? = null,
     val showCardImages: Boolean? = null,
     val showImagesTermToDefinition: Boolean? = null,
     val showImagesDefinitionToTerm: Boolean? = null,
@@ -57,6 +58,7 @@ data class DeviceOverrides(
 /** Account settings with this device's overrides applied. */
 data class EffectiveStudyPrefs(
     val accentColor: String,
+    val studyDirections: List<String>,
     val showCardImages: Boolean,
     val showImagesTermToDefinition: Boolean,
     val showImagesDefinitionToTerm: Boolean,
@@ -81,6 +83,7 @@ data class EffectiveStudyPrefs(
 fun resolveStudyPrefs(server: SettingsDto, device: DeviceOverrides): EffectiveStudyPrefs =
     EffectiveStudyPrefs(
         accentColor = device.accentColor ?: server.accentColor,
+        studyDirections = device.studyDirections ?: server.studyDirections,
         showCardImages = device.showCardImages ?: server.showCardImages,
         showImagesTermToDefinition = device.showImagesTermToDefinition
             ?: server.showImagesTermToDefinition,
@@ -116,6 +119,8 @@ class DevicePrefs @Inject constructor(
 ) {
     private val fontScaleKey = floatPreferencesKey("font_scale")
     private val accentKey = stringPreferencesKey("device_accent_color")
+    // Ordered comma list; always at least one direction once set.
+    private val directionsKey = stringPreferencesKey("device_study_directions")
     private val showImagesKey = booleanPreferencesKey("device_show_card_images")
     private val showImagesT2dKey = booleanPreferencesKey("device_show_images_t2d")
     private val showImagesD2tKey = booleanPreferencesKey("device_show_images_d2t")
@@ -141,6 +146,11 @@ class DevicePrefs @Inject constructor(
         .map { prefs ->
             DeviceOverrides(
                 accentColor = prefs[accentKey],
+                studyDirections = prefs[directionsKey]
+                    ?.split(',')
+                    ?.map(String::trim)
+                    ?.filter(String::isNotEmpty)
+                    ?.takeIf { it.isNotEmpty() },
                 showCardImages = prefs[showImagesKey],
                 showImagesTermToDefinition = prefs[showImagesT2dKey],
                 showImagesDefinitionToTerm = prefs[showImagesD2tKey],
@@ -172,6 +182,11 @@ class DevicePrefs @Inject constructor(
     fun setFontScale(value: Float) = set { it[fontScaleKey] = value }
 
     fun setAccentColor(value: String) = set { it[accentKey] = value }
+
+    fun setStudyDirections(directions: List<String>) {
+        if (directions.isEmpty()) return // at least one task type stays on
+        set { it[directionsKey] = directions.joinToString(",") }
+    }
 
     fun setShowCardImages(value: Boolean) = set { it[showImagesKey] = value }
 

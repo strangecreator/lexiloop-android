@@ -47,6 +47,8 @@ class SettingsViewModel @Inject constructor(
 
     fun setAccentColor(value: String) = devicePrefs.setAccentColor(value)
 
+    fun setStudyDirections(directions: List<String>) = devicePrefs.setStudyDirections(directions)
+
     fun setShowCardImages(value: Boolean) = devicePrefs.setShowCardImages(value)
 
     fun setShowImagesTermToDefinition(value: Boolean) =
@@ -104,7 +106,6 @@ class SettingsViewModel @Inject constructor(
         val f = current.form
         val body = SettingsWriteBody(
             theme = f.theme,
-            studyDirections = f.studyDirections,
             generationModel = f.generationModel,
             judgeModel = f.judgeModel,
             imageModel = f.imageModel,

@@ -203,6 +203,7 @@ class ContentRepository @Inject constructor(
         mode: String,
         excludeIds: List<Int>,
         prefetch: Int? = null,
+        directions: List<String>? = null,
     ): ApiResult<NextCardResponse> =
         safeApi {
             api.nextCard(
@@ -210,6 +211,7 @@ class ContentRepository @Inject constructor(
                 mode = mode,
                 exclude = excludeIds.takeIf { it.isNotEmpty() }?.joinToString(","),
                 prefetch = prefetch,
+                directions = directions?.takeIf { it.isNotEmpty() }?.joinToString(","),
             )
         }
 

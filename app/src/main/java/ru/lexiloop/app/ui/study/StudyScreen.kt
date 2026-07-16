@@ -53,10 +53,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -80,6 +82,7 @@ import ru.lexiloop.app.ui.pagePadding
 import ru.lexiloop.app.ui.theme.LocalPalette
 import ru.lexiloop.app.ui.theme.Manrope
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
     val p = LocalPalette.current
@@ -235,9 +238,9 @@ fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
         if (!state.practiceMode && breakdown != null && state.remaining > 0) {
             Spacer(Modifier.height(7.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                if (breakdown.new > 0) QueueChip("${breakdown.new} new", p.blue)
-                if (breakdown.learning > 0) QueueChip("${breakdown.learning} learning", p.orange)
-                if (breakdown.review > 0) QueueChip("${breakdown.review} review", p.green)
+                if (breakdown.new > 0) QueueChip("${breakdown.new} new")
+                if (breakdown.learning > 0) QueueChip("${breakdown.learning} learning")
+                if (breakdown.review > 0) QueueChip("${breakdown.review} review")
             }
         }
         Spacer(Modifier.height(18.dp))
@@ -451,17 +454,38 @@ fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
                         color = p.muted,
                     )
                     Spacer(Modifier.height(7.dp))
-                    LexiTextArea(
-                        value = state.answer,
-                        onValueChange = viewModel::onAnswerChange,
-                        placeholder = when (state.direction) {
-                            "definition_to_term" -> "Your answer…"
-                            "term_to_sentence" -> "Any natural sentence that shows the meaning…"
-                            else -> "A clear paraphrase is enough…"
-                        },
-                        minHeight = 115,
-                        onSubmit = viewModel::checkAnswer,
-                    )
+                    // When the soft keyboard opens it can cover the answer
+                    // box; scroll it into the shrunken viewport once the IME
+                    // animation has settled.
+                    val answerBring = remember {
+                        androidx.compose.foundation.relocation.BringIntoViewRequester()
+                    }
+                    val answerScope = rememberCoroutineScope()
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .bringIntoViewRequester(answerBring)
+                            .onFocusEvent { focus ->
+                                if (focus.hasFocus) {
+                                    answerScope.launch {
+                                        kotlinx.coroutines.delay(360)
+                                        answerBring.bringIntoView()
+                                    }
+                                }
+                            },
+                    ) {
+                        LexiTextArea(
+                            value = state.answer,
+                            onValueChange = viewModel::onAnswerChange,
+                            placeholder = when (state.direction) {
+                                "definition_to_term" -> "Your answer…"
+                                "term_to_sentence" -> "Any natural sentence that shows the meaning…"
+                                else -> "A clear paraphrase is enough…"
+                            },
+                            minHeight = 115,
+                            onSubmit = viewModel::checkAnswer,
+                        )
+                    }
                     Spacer(Modifier.height(12.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         LexiButton(
@@ -533,16 +557,18 @@ fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
     }
 }
 
+/** `.queue-chips span` — muted on surface3, like the current site styling. */
 @Composable
-private fun QueueChip(text: String, color: androidx.compose.ui.graphics.Color) {
+private fun QueueChip(text: String) {
+    val p = LocalPalette.current
     Text(
         text,
         modifier = Modifier
-            .background(color.copy(alpha = 0.12f), CircleShape)
+            .background(p.surface3, CircleShape)
             .padding(horizontal = 8.dp, vertical = 3.dp),
         fontSize = 10.sp,
         fontWeight = FontWeight.W700,
-        color = color,
+        color = p.muted,
     )
 }
 

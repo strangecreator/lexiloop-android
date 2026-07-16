@@ -182,6 +182,7 @@ class StudyViewModel @Inject constructor(
     }
 
     private fun load(due: Boolean, resetRound: Boolean = false, adjustedTotal: Int? = null) {
+        clearPrefetchedSession()
         val mode = if (due) "due" else "practice"
         _state.update {
             it.copy(
@@ -191,10 +192,17 @@ class StudyViewModel @Inject constructor(
         }
         viewModelScope.launch {
             val excluded = if (due) emptyList() else practiceSeen.toList()
-            // Only an explicit device override changes how many upcoming
-            // images the server lists; otherwise the account setting applies.
-            val prefetch = devicePrefs.overrides.value.imagePrefetchCount
-            when (val result = repository.nextCard(observedPoolId, mode, excluded, prefetch)) {
+            // Only explicit device overrides change how many upcoming images
+            // the server lists and which task types rotate; otherwise the
+            // account settings apply.
+            val overrides = devicePrefs.overrides.value
+            when (
+                val result = repository.nextCard(
+                    observedPoolId, mode, excluded,
+                    prefetch = overrides.imagePrefetchCount,
+                    directions = overrides.studyDirections,
+                )
+            ) {
                 is ApiResult.Success -> applySession(result.data, due, resetRound, adjustedTotal, offline = false)
                 is ApiResult.Error -> {
                     val fallback = if (result.code == null) offlineSession(due, excluded) else null
@@ -239,6 +247,55 @@ class StudyViewModel @Inject constructor(
                 roundCompleted = completed,
                 roundTotal = total,
                 offline = offline,
+            )
+        }
+    }
+
+    // --- Next-session prefetch: once the current card's review is saved, the
+    // server's answer to "what comes next" is final, so it is fetched while
+    // the user reads the feedback and "Next task" switches instantly. ---
+
+    private var nextSession: NextCardResponse? = null
+    private var nextSessionJob: kotlinx.coroutines.Job? = null
+
+    private fun clearPrefetchedSession() {
+        nextSessionJob?.cancel()
+        nextSessionJob = null
+        nextSession = null
+    }
+
+    private fun schedulePrefetchNextSession() {
+        clearPrefetchedSession()
+        val current = _state.value
+        if (current.offline || !networkMonitor.online.value) return
+        val due = !current.practiceMode
+        val excluded = if (due) emptyList() else practiceSeen.toList()
+        nextSessionJob = viewModelScope.launch {
+            val overrides = devicePrefs.overrides.value
+            val result = repository.nextCard(
+                observedPoolId,
+                if (due) "due" else "practice",
+                excluded,
+                prefetch = overrides.imagePrefetchCount,
+                directions = overrides.studyDirections,
+            )
+            if (result is ApiResult.Success) {
+                nextSession = result.data
+                warmSessionImages(result.data)
+            }
+        }
+    }
+
+    /** Warms the prefetched card's own image so its reveal starts instantly. */
+    private fun warmSessionImages(data: NextCardResponse) {
+        val card = data.card ?: return
+        if (!card.hasImage) return
+        val loader = appContext.imageLoader
+        for (thumb in listOf(true, false)) {
+            loader.enqueue(
+                ImageRequest.Builder(appContext)
+                    .data(CardImages.imageUrl(card.id, card.imageKey, thumb))
+                    .build(),
             )
         }
     }
@@ -425,10 +482,12 @@ class StudyViewModel @Inject constructor(
                     if (judged.reviewRecorded) {
                         markReviewed(card.id)
                         _state.update { it.copy(busy = false, judge = judged) }
+                        schedulePrefetchNextSession()
                     } else {
                         // Fallback for a lost lock race: record explicitly.
                         val saved = recordReview(card, judged, measured)
                         _state.update { it.copy(busy = false, judge = if (saved) judged else null) }
+                        if (saved) schedulePrefetchNextSession()
                     }
                 }
                 is ApiResult.Error -> {
@@ -455,8 +514,9 @@ class StudyViewModel @Inject constructor(
         val measured = current.responseMs ?: elapsed()
         _state.update { it.copy(revealed = true, responseMs = measured, busy = true) }
         viewModelScope.launch {
-            recordReview(card, judged = null, measured)
+            val saved = recordReview(card, judged = null, measured)
             _state.update { it.copy(busy = false) }
+            if (saved) schedulePrefetchNextSession()
         }
     }
 
@@ -530,7 +590,28 @@ class StudyViewModel @Inject constructor(
                 val saved = recordReview(card, current.judge, current.responseMs ?: elapsed())
                 if (!saved) return@launch
             }
-            load(due = !current.practiceMode)
+            val ready = nextSession
+            if (ready != null && !_state.value.loading) {
+                // The prefetched response was fetched after the review was
+                // recorded, so it equals what load() would return — minus the
+                // round trip.
+                clearPrefetchedSession()
+                _state.update {
+                    it.copy(
+                        answer = "", judge = null, revealed = false,
+                        reviewed = false, hintLetters = 0, responseMs = null,
+                    )
+                }
+                applySession(
+                    ready,
+                    due = !current.practiceMode,
+                    resetRound = false,
+                    adjustedTotal = null,
+                    offline = false,
+                )
+            } else {
+                load(due = !current.practiceMode)
+            }
         }
     }
 

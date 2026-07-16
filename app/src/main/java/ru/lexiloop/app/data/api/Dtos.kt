@@ -298,7 +298,6 @@ data class SettingsDto(
 @Serializable
 data class SettingsWriteBody(
     val theme: String,
-    @SerialName("study_directions") val studyDirections: List<String>,
     @SerialName("generation_model") val generationModel: String,
     @SerialName("judge_model") val judgeModel: String,
     @SerialName("image_model") val imageModel: String,

@@ -35,9 +35,12 @@ The design system is translated 1:1 from the web app's `styles.css`:
   TTS pronunciation. Card images appear full-bleed behind the prompt with the
   site's cinematic reveal animations (morning mist, ripple, slow drift,
   watercolor droplets — blur-up thumb, luminance-aware scrim, per-card
-  deterministic pick), and upcoming images are prefetched. Enter on the
-  keyboard submits the answer, and the queue refetches every time the page
-  opens, so settings changes apply immediately.
+  deterministic pick), and upcoming images are prefetched. Once a review is
+  saved, the next card is prefetched in the background while the feedback is
+  on screen, so "Next task" switches instantly. Enter on the keyboard submits
+  the answer, the answer box scrolls above the soft keyboard when focused,
+  and the queue refetches every time the page opens, so settings changes
+  apply immediately.
 - **Library** — the AI generator panel, server-side search, expandable card
   details (definition, examples, forms, synonyms, collocations, usage notes),
   block/unblock/edit/delete, pagination, full manual card editor, and the
@@ -55,12 +58,14 @@ The design system is translated 1:1 from the web app's `styles.css`:
 - **Settings** — the complete web settings form: generation/judge/sentence/
   image model pickers with catalog cards, per-provider API keys with staged
   edits (save/remove/undo), acceptance-score sliders, task types, appearance,
-  daily new cards, and the advanced scheduler tuning section. The interface
-  color, study-image display options, reveal animations, image prefetch
-  count, and automatic review timing bands are **device-local**: they follow
-  the account settings until customized in the app, then live in DataStore
-  and never overwrite the site's values (timing bands ride along with each
-  review as `easy_seconds`/`good_seconds`, prefetch as `?prefetch=`).
+  daily new cards, and the advanced scheduler tuning section. The task
+  types, interface color, study-image display options, reveal animations,
+  image prefetch count, and automatic review timing bands are
+  **device-local**: they follow the account settings until customized in the
+  app, then live in DataStore and never overwrite the site's values (task
+  types ride along as `?directions=`, timing bands with each review as
+  `easy_seconds`/`good_seconds`, prefetch as `?prefetch=` — progress and
+  scheduling stay account-wide either way).
 
 ## Architecture
 
