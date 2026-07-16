@@ -262,7 +262,12 @@ class DevicePrefs @Inject constructor(
                     prefs[key as Preferences.Key<Any>] = value
                 }
             }
-            sessionDataStore.edit { prefs -> legacy.keys.forEach(prefs::remove) }
+            sessionDataStore.edit { prefs ->
+                legacy.keys.forEach { key ->
+                    @Suppress("UNCHECKED_CAST")
+                    prefs.remove(key as Preferences.Key<Any>)
+                }
+            }
         } catch (_: Exception) {
             // A failed migration must never block startup; the affected
             // preferences simply fall back to the account settings.
