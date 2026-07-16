@@ -17,10 +17,14 @@ object CardImages {
 
     fun imageUrl(card: FlashcardDto, thumb: Boolean = false): String? {
         if (!card.hasImage) return null
+        return imageUrl(card.id, card.imageKey, thumb)
+    }
+
+    fun imageUrl(cardId: Int, imageKey: String, thumb: Boolean = false): String {
         val size = if (thumb) "&size=thumb" else ""
         // image_key busts Coil's cache whenever a new file is stored server-side.
-        val key = URLEncoder.encode(card.imageKey, "UTF-8")
-        return "$base/api/flashcards/${card.id}/image/?key=$key$size"
+        val key = URLEncoder.encode(imageKey, "UTF-8")
+        return "$base/api/flashcards/$cardId/image/?key=$key$size"
     }
 }
 

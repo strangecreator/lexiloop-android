@@ -134,6 +134,8 @@ interface LexiLoopApi {
         @Query("pool") pool: Int? = null,
         @Query("mode") mode: String = "due",
         @Query("exclude") exclude: String? = null,
+        // Device override for how many upcoming images the server lists.
+        @Query("prefetch") prefetch: Int? = null,
     ): NextCardResponse
 
     @POST("api/study/{id}/judge/")

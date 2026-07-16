@@ -6,7 +6,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import ru.lexiloop.app.data.api.PoolDto
@@ -51,6 +54,12 @@ class ShellViewModel @Inject constructor(
 
     val session: StateFlow<SessionState> = sessionManager.state
     val fontScale: StateFlow<Float> = devicePrefs.fontScale
+
+    /** Device-local accent override; null follows the account setting. */
+    val deviceAccent: StateFlow<String?> = devicePrefs.overrides
+        .map { it.accentColor }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, devicePrefs.overrides.value.accentColor)
+
     val settings: StateFlow<SettingsDto> = settingsStore.settings
     val pools: StateFlow<List<PoolDto>> = poolStore.pools
     val activePoolId: StateFlow<Int?> = poolStore.activePoolId

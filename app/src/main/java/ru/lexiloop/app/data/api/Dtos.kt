@@ -146,6 +146,12 @@ data class QueueBreakdownDto(
 )
 
 @Serializable
+data class UpcomingImageDto(
+    val id: Int,
+    @SerialName("image_key") val imageKey: String = "",
+)
+
+@Serializable
 data class NextCardResponse(
     val card: FlashcardDto? = null,
     val direction: String? = null,
@@ -158,6 +164,7 @@ data class NextCardResponse(
     @SerialName("round_completed") val roundCompleted: Int = 0,
     @SerialName("queue_breakdown") val queueBreakdown: QueueBreakdownDto? = null,
     @SerialName("show_images") val showImages: Boolean = false,
+    @SerialName("upcoming_images") val upcomingImages: List<UpcomingImageDto> = emptyList(),
 )
 
 @Serializable
@@ -168,6 +175,10 @@ data class JudgeRequest(
     val practice: Boolean = false,
     @SerialName("hint_revealed_letters") val hintRevealedLetters: Int = 0,
     @SerialName("hint_total_letters") val hintTotalLetters: Int = 0,
+    // This device's review-timing band; the server falls back to the account
+    // settings when absent.
+    @SerialName("easy_seconds") val easySeconds: Int? = null,
+    @SerialName("good_seconds") val goodSeconds: Int? = null,
 )
 
 @Serializable
@@ -195,6 +206,10 @@ data class ReviewRequest(
     val practice: Boolean = false,
     @SerialName("hint_revealed_letters") val hintRevealedLetters: Int = 0,
     @SerialName("hint_total_letters") val hintTotalLetters: Int = 0,
+    // This device's review-timing band; the server falls back to the account
+    // settings when absent.
+    @SerialName("easy_seconds") val easySeconds: Int? = null,
+    @SerialName("good_seconds") val goodSeconds: Int? = null,
 )
 
 @Serializable
@@ -249,6 +264,8 @@ data class SettingsDto(
     @SerialName("show_images_term_to_definition") val showImagesTermToDefinition: Boolean = true,
     @SerialName("show_images_definition_to_term") val showImagesDefinitionToTerm: Boolean = true,
     @SerialName("show_images_term_to_sentence") val showImagesTermToSentence: Boolean = true,
+    @SerialName("image_animations") val imageAnimations: List<String> = listOf("mist", "ripple", "drift"),
+    @SerialName("image_animation_durations") val imageAnimationDurations: Map<String, Double> = emptyMap(),
     @SerialName("image_prefetch_count") val imagePrefetchCount: Int = 2,
     @SerialName("token_status") val tokenStatus: Map<String, Boolean> = emptyMap(),
     @SerialName("judge_acceptance_score") val judgeAcceptanceScore: Int = 5,
@@ -272,20 +289,19 @@ data class SettingsDto(
     @SerialName("term_to_sentence_good_seconds") val termToSentenceGoodSeconds: Int = 60,
 )
 
-/** Writable subset sent by the Settings page; read-only fields stay out. */
+/**
+ * Writable subset sent by the Settings page; read-only fields stay out.
+ * Appearance/image/timing fields that are device-local in the app (accent
+ * color, image display, prefetch, animations, review timing) are also absent:
+ * the PATCH is partial, so the site's copy of those keeps its own values.
+ */
 @Serializable
 data class SettingsWriteBody(
     val theme: String,
-    @SerialName("accent_color") val accentColor: String,
     @SerialName("study_directions") val studyDirections: List<String>,
     @SerialName("generation_model") val generationModel: String,
     @SerialName("judge_model") val judgeModel: String,
     @SerialName("image_model") val imageModel: String,
-    @SerialName("show_card_images") val showCardImages: Boolean,
-    @SerialName("show_images_term_to_definition") val showImagesTermToDefinition: Boolean,
-    @SerialName("show_images_definition_to_term") val showImagesDefinitionToTerm: Boolean,
-    @SerialName("show_images_term_to_sentence") val showImagesTermToSentence: Boolean,
-    @SerialName("image_prefetch_count") val imagePrefetchCount: Int,
     @SerialName("judge_acceptance_score") val judgeAcceptanceScore: Int,
     @SerialName("sentence_judge_model") val sentenceJudgeModel: String,
     @SerialName("sentence_acceptance_score") val sentenceAcceptanceScore: Int,
@@ -298,12 +314,6 @@ data class SettingsWriteBody(
     @SerialName("hard_multiplier") val hardMultiplier: Double,
     @SerialName("lapse_multiplier") val lapseMultiplier: Double,
     @SerialName("minimum_ease") val minimumEase: Double,
-    @SerialName("term_to_definition_easy_seconds") val termToDefinitionEasySeconds: Int,
-    @SerialName("term_to_definition_good_seconds") val termToDefinitionGoodSeconds: Int,
-    @SerialName("definition_to_term_easy_seconds") val definitionToTermEasySeconds: Int,
-    @SerialName("definition_to_term_good_seconds") val definitionToTermGoodSeconds: Int,
-    @SerialName("term_to_sentence_easy_seconds") val termToSentenceEasySeconds: Int,
-    @SerialName("term_to_sentence_good_seconds") val termToSentenceGoodSeconds: Int,
     // A non-empty string replaces the provider key, "" removes it, absent keys
     // stay untouched. Null means "no key changes staged".
     @SerialName("provider_tokens") val providerTokens: Map<String, String>? = null,

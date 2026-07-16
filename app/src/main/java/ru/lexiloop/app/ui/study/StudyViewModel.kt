@@ -4,9 +4,14 @@ import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import coil.imageLoader
+import coil.request.ImageRequest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import ru.lexiloop.app.data.api.FlashcardDto
@@ -15,10 +20,13 @@ import ru.lexiloop.app.data.api.JudgeResponse
 import ru.lexiloop.app.data.api.NextCardResponse
 import ru.lexiloop.app.data.api.ReviewRequest
 import ru.lexiloop.app.data.repo.ApiResult
+import ru.lexiloop.app.data.repo.CardImages
 import ru.lexiloop.app.data.repo.ContentRepository
+import ru.lexiloop.app.data.repo.EffectiveStudyPrefs
 import ru.lexiloop.app.data.repo.PoolStore
 import ru.lexiloop.app.data.repo.PronunciationPlayer
 import ru.lexiloop.app.data.repo.ToastBus
+import ru.lexiloop.app.data.repo.resolveStudyPrefs
 import javax.inject.Inject
 
 data class StudyUiState(
@@ -118,11 +126,23 @@ class StudyViewModel @Inject constructor(
     private val toastBus: ToastBus,
     private val offlineCache: ru.lexiloop.app.data.offline.OfflineCache,
     private val networkMonitor: ru.lexiloop.app.data.offline.NetworkMonitor,
+    settingsStore: ru.lexiloop.app.data.repo.SettingsStore,
+    private val devicePrefs: ru.lexiloop.app.data.repo.DevicePrefs,
     @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(StudyUiState())
     val state: StateFlow<StudyUiState> = _state
+
+    /** Account settings with this device's overrides applied. */
+    val studyPrefs: StateFlow<EffectiveStudyPrefs> =
+        combine(settingsStore.settings, devicePrefs.overrides) { server, device ->
+            resolveStudyPrefs(server, device)
+        }.stateIn(
+            viewModelScope,
+            SharingStarted.Eagerly,
+            resolveStudyPrefs(settingsStore.settings.value, devicePrefs.overrides.value),
+        )
 
     val activePoolName: String? get() = poolStore.activePool?.name
 
@@ -130,6 +150,7 @@ class StudyViewModel @Inject constructor(
     private var shownAt = 0L
     private var observedPoolId: Int? = null
     private var poolInitialized = false
+    private var firstShowConsumed = false
 
     init {
         viewModelScope.launch {
@@ -145,6 +166,21 @@ class StudyViewModel @Inject constructor(
         }
     }
 
+    /**
+     * The web StudyPage refetches /study/next/ on every mount, so settings
+     * changed in between (task types, images) apply immediately. This view
+     * model outlives the page, so re-entering the page starts a fresh due
+     * round the same way. The first show rides on the load from `init`.
+     */
+    fun onPageShown() {
+        if (!firstShowConsumed) {
+            firstShowConsumed = true
+            return
+        }
+        practiceSeen = mutableListOf()
+        load(due = true, resetRound = true)
+    }
+
     private fun load(due: Boolean, resetRound: Boolean = false, adjustedTotal: Int? = null) {
         val mode = if (due) "due" else "practice"
         _state.update {
@@ -155,7 +191,10 @@ class StudyViewModel @Inject constructor(
         }
         viewModelScope.launch {
             val excluded = if (due) emptyList() else practiceSeen.toList()
-            when (val result = repository.nextCard(observedPoolId, mode, excluded)) {
+            // Only an explicit device override changes how many upcoming
+            // images the server lists; otherwise the account setting applies.
+            val prefetch = devicePrefs.overrides.value.imagePrefetchCount
+            when (val result = repository.nextCard(observedPoolId, mode, excluded, prefetch)) {
                 is ApiResult.Success -> applySession(result.data, due, resetRound, adjustedTotal, offline = false)
                 is ApiResult.Error -> {
                     val fallback = if (result.code == null) offlineSession(due, excluded) else null
@@ -178,6 +217,7 @@ class StudyViewModel @Inject constructor(
         offline: Boolean,
     ) {
         shownAt = SystemClock.elapsedRealtime()
+        prefetchUpcomingImages(data)
         _state.update { current ->
             val completed: Int
             val total: Int
@@ -200,6 +240,22 @@ class StudyViewModel @Inject constructor(
                 roundTotal = total,
                 offline = offline,
             )
+        }
+    }
+
+    /** Warms Coil's cache so the next cards' reveals start instantly. */
+    private fun prefetchUpcomingImages(data: NextCardResponse) {
+        val count = studyPrefs.value.imagePrefetchCount
+        if (count <= 0) return
+        val loader = appContext.imageLoader
+        data.upcomingImages.take(count).forEach { upcoming ->
+            for (thumb in listOf(true, false)) {
+                loader.enqueue(
+                    ImageRequest.Builder(appContext)
+                        .data(CardImages.imageUrl(upcoming.id, upcoming.imageKey, thumb))
+                        .build(),
+                )
+            }
         }
     }
 
@@ -280,6 +336,7 @@ class StudyViewModel @Inject constructor(
         measured: Long,
         current: StudyUiState,
     ) {
+        val timing = devicePrefs.overrides.value.timingFor(current.direction)
         offlineCache.enqueueReview(
             ru.lexiloop.app.data.offline.PendingReview(
                 id = java.util.UUID.randomUUID().toString(),
@@ -295,6 +352,8 @@ class StudyViewModel @Inject constructor(
                     practice = current.practiceMode,
                     hintRevealedLetters = current.hintLetters,
                     hintTotalLetters = Recall.letterCount(card.term),
+                    easySeconds = timing?.first,
+                    goodSeconds = timing?.second,
                 ),
                 queuedAt = System.currentTimeMillis(),
             ),
@@ -349,6 +408,7 @@ class StudyViewModel @Inject constructor(
                 }
                 return@launch
             }
+            val timing = devicePrefs.overrides.value.timingFor(current.direction)
             val request = JudgeRequest(
                 answer = current.answer,
                 direction = current.direction,
@@ -356,6 +416,8 @@ class StudyViewModel @Inject constructor(
                 practice = current.practiceMode,
                 hintRevealedLetters = current.hintLetters,
                 hintTotalLetters = Recall.letterCount(card.term),
+                easySeconds = timing?.first,
+                goodSeconds = timing?.second,
             )
             when (val result = repository.judge(card.id, request)) {
                 is ApiResult.Success -> {
@@ -406,6 +468,7 @@ class StudyViewModel @Inject constructor(
             markReviewed(card.id)
             return true
         }
+        val timing = devicePrefs.overrides.value.timingFor(current.direction)
         val request = ReviewRequest(
             direction = current.direction,
             answer = current.answer,
@@ -417,6 +480,8 @@ class StudyViewModel @Inject constructor(
             practice = current.practiceMode,
             hintRevealedLetters = current.hintLetters,
             hintTotalLetters = Recall.letterCount(card.term),
+            easySeconds = timing?.first,
+            goodSeconds = timing?.second,
         )
         var result = repository.review(card.id, request)
         if (result is ApiResult.Error && result.code == 409) {

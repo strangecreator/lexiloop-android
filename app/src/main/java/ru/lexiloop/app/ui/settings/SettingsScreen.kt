@@ -67,8 +67,11 @@ private val UI_ACCENTS = listOf("emerald", "blue", "teal", "indigo", "violet", "
 fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     val p = LocalPalette.current
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val overrides by viewModel.overrides.collectAsStateWithLifecycle()
     val form = state.form
     val models = state.models
+    // Device-local values fall back to the account settings until customized.
+    val device = ru.lexiloop.app.data.repo.resolveStudyPrefs(form, overrides)
 
     val generationModel = models.firstOrNull { it.id == form.generationModel }
     val judgeModel = models.firstOrNull { it.id == form.judgeModel }
@@ -177,7 +180,8 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             SettingsSection(
                 icon = Icons.Filled.Image,
                 title = "Card images",
-                subtitle = "An optional picture appears on the flashcard during study.",
+                subtitle = "An optional picture appears on the flashcard during study. " +
+                    "Display options below are stored on this device; the model saves to your account.",
             ) {
                 SettingsField("Image assistant model", "Reads a pasted page link and points at the right image file when a plain download fails.") {
                     LexiSelect(
@@ -191,28 +195,76 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                     Column(Modifier.weight(1f)) {
                         Text("Study images", fontSize = 13.sp, fontWeight = FontWeight.W600, color = p.muted)
                         Text(
-                            if (form.showCardImages) "Images are shown on flashcards" else "Images stay hidden during study",
+                            if (device.showCardImages) "Images are shown on flashcards" else "Images stay hidden during study",
                             fontSize = 11.sp,
                             color = p.muted2,
                         )
                     }
-                    LexiSwitch(form.showCardImages) { checked -> viewModel.patch { it.copy(showCardImages = checked) } }
+                    LexiSwitch(device.showCardImages, viewModel::setShowCardImages)
                 }
                 SettingsField("Where images appear", "Applies while study images are on.") {
-                    LexiCheckRow(form.showImagesTermToDefinition, { checked ->
-                        viewModel.patch { it.copy(showImagesTermToDefinition = checked) }
-                    }, "Word → definition tasks")
-                    LexiCheckRow(form.showImagesDefinitionToTerm, { checked ->
-                        viewModel.patch { it.copy(showImagesDefinitionToTerm = checked) }
-                    }, "Definition → word tasks", "a picture can hint at the answer — turn off for stricter recall")
-                    LexiCheckRow(form.showImagesTermToSentence, { checked ->
-                        viewModel.patch { it.copy(showImagesTermToSentence = checked) }
-                    }, "Word → sentence tasks")
+                    LexiCheckRow(
+                        device.showImagesTermToDefinition,
+                        viewModel::setShowImagesTermToDefinition,
+                        "Word → definition tasks",
+                    )
+                    LexiCheckRow(
+                        device.showImagesDefinitionToTerm,
+                        viewModel::setShowImagesDefinitionToTerm,
+                        "Definition → word tasks",
+                        "a picture can hint at the answer — turn off for stricter recall",
+                    )
+                    LexiCheckRow(
+                        device.showImagesTermToSentence,
+                        viewModel::setShowImagesTermToSentence,
+                        "Word → sentence tasks",
+                    )
+                }
+                SettingsField("Reveal animations", "Each card keeps one of the checked animations. Uncheck all for a plain fade.") {
+                    ru.lexiloop.app.ui.study.RevealAnimations.CHOICES.forEach { choice ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Box(Modifier.weight(1f)) {
+                                LexiCheckRow(
+                                    checked = device.imageAnimations.contains(choice.id),
+                                    onCheckedChange = { checked ->
+                                        val current = device.imageAnimations
+                                        val next = if (checked) {
+                                            ru.lexiloop.app.ui.study.RevealAnimations.CHOICES
+                                                .map { it.id }
+                                                .filter { it == choice.id || current.contains(it) }
+                                        } else {
+                                            current.filter { it != choice.id }
+                                        }
+                                        viewModel.setImageAnimations(next)
+                                    },
+                                    label = choice.label,
+                                    sub = choice.hint,
+                                )
+                            }
+                            Box(Modifier.width(74.dp)) {
+                                NumberInput(
+                                    value = ru.lexiloop.app.ui.study.RevealAnimations.durationSeconds(
+                                        choice.id,
+                                        device.imageAnimationDurations,
+                                    ),
+                                    onValue = { seconds ->
+                                        viewModel.setImageAnimationDuration(choice.id, seconds)
+                                    },
+                                    min = 0.5,
+                                    max = 30.0,
+                                )
+                            }
+                            Text("s", fontSize = 12.sp, color = p.muted2)
+                        }
+                    }
                 }
                 SettingsField("Prefetch upcoming images", "How many of the next flashcards' images load in advance during study. 0 disables prefetching.") {
                     NumberInput(
-                        value = form.imagePrefetchCount.toDouble(),
-                        onValue = { value -> viewModel.patch { it.copy(imagePrefetchCount = value.toInt()) } },
+                        value = device.imagePrefetchCount.toDouble(),
+                        onValue = { value -> viewModel.setImagePrefetchCount(value.toInt()) },
                         min = 0.0,
                         max = 10.0,
                         round = true,
@@ -361,13 +413,17 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                         Icon(Icons.Filled.Palette, contentDescription = null, tint = p.primary2, modifier = Modifier.size(18.dp))
                         Column {
                             Text("Interface color", fontSize = 13.sp, fontWeight = FontWeight.W700, color = p.text)
-                            Text("Choose the accent used for actions, charts, and highlights.", fontSize = 11.sp, color = p.muted)
+                            Text(
+                                "Stored on this device and applied immediately — the site keeps its own color.",
+                                fontSize = 11.sp,
+                                color = p.muted,
+                            )
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         UI_ACCENTS.forEach { accentName ->
                             val swatch = lexiPalette(p.isDark, accentName).primary
-                            val active = form.accentColor == accentName
+                            val active = device.accentColor == accentName
                             Box(
                                 Modifier
                                     .size(38.dp)
@@ -378,7 +434,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                                         color = if (active) swatch else p.border2,
                                         shape = RoundedCornerShape(10.dp),
                                     )
-                                    .clickable { viewModel.patch { it.copy(accentColor = accentName) } },
+                                    .clickable { viewModel.setAccentColor(accentName) },
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Box(Modifier.size(20.dp).background(swatch, RoundedCornerShape(6.dp)))
@@ -428,30 +484,44 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             }
         }
 
-        // Automatic review timing
+        // Automatic review timing (device-local: typing speed differs between
+        // a phone and a computer keyboard)
         item(key = "timing") {
             SettingsSection(
                 icon = Icons.Filled.Schedule,
                 title = "Automatic review timing",
-                subtitle = "Correctness is primary; response time chooses Easy, Good, or Hard automatically.",
+                subtitle = "Correctness is primary; response time chooses Easy, Good, or Hard automatically. " +
+                    "Stored on this device — typing on a phone is slower than on a computer.",
             ) {
                 TimingBand(
                     "Word → definition", "Writing a free-form meaning takes longer.",
-                    form.termToDefinitionEasySeconds, form.termToDefinitionGoodSeconds,
-                    { value -> viewModel.patch { it.copy(termToDefinitionEasySeconds = value) } },
-                    { value -> viewModel.patch { it.copy(termToDefinitionGoodSeconds = value) } },
+                    device.termToDefinitionEasySeconds, device.termToDefinitionGoodSeconds,
+                    { value ->
+                        viewModel.setTimingBand("term_to_definition", value, device.termToDefinitionGoodSeconds)
+                    },
+                    { value ->
+                        viewModel.setTimingBand("term_to_definition", device.termToDefinitionEasySeconds, value)
+                    },
                 )
                 TimingBand(
                     "Definition → word", "Recalling and typing one term should be faster.",
-                    form.definitionToTermEasySeconds, form.definitionToTermGoodSeconds,
-                    { value -> viewModel.patch { it.copy(definitionToTermEasySeconds = value) } },
-                    { value -> viewModel.patch { it.copy(definitionToTermGoodSeconds = value) } },
+                    device.definitionToTermEasySeconds, device.definitionToTermGoodSeconds,
+                    { value ->
+                        viewModel.setTimingBand("definition_to_term", value, device.definitionToTermGoodSeconds)
+                    },
+                    { value ->
+                        viewModel.setTimingBand("definition_to_term", device.definitionToTermEasySeconds, value)
+                    },
                 )
                 TimingBand(
                     "Word → sentence", "Composing an original sentence takes the longest.",
-                    form.termToSentenceEasySeconds, form.termToSentenceGoodSeconds,
-                    { value -> viewModel.patch { it.copy(termToSentenceEasySeconds = value) } },
-                    { value -> viewModel.patch { it.copy(termToSentenceGoodSeconds = value) } },
+                    device.termToSentenceEasySeconds, device.termToSentenceGoodSeconds,
+                    { value ->
+                        viewModel.setTimingBand("term_to_sentence", value, device.termToSentenceGoodSeconds)
+                    },
+                    { value ->
+                        viewModel.setTimingBand("term_to_sentence", device.termToSentenceEasySeconds, value)
+                    },
                 )
             }
         }

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -58,8 +59,14 @@ fun AppRoot(shell: ShellViewModel = hiltViewModel()) {
     val session by shell.session.collectAsStateWithLifecycle()
     val settings by shell.settings.collectAsStateWithLifecycle()
     val fontScale by shell.fontScale.collectAsStateWithLifecycle()
+    val deviceAccent by shell.deviceAccent.collectAsStateWithLifecycle()
 
-    LexiTheme(theme = settings.theme, accent = settings.accentColor, fontScale = fontScale) {
+    LexiTheme(
+        theme = settings.theme,
+        // The device's own color once picked in the app; the site keeps its own.
+        accent = deviceAccent ?: settings.accentColor,
+        fontScale = fontScale,
+    ) {
         when (session) {
             is SessionState.Loading -> Unit // system splash is still on screen
             is SessionState.LoggedOut -> AuthScreen()
@@ -145,6 +152,9 @@ private fun AppShell(shell: ShellViewModel) {
                 Row(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
+                        // Above the soft keyboard when one is open, else above
+                        // the navigation bar.
+                        .imePadding()
                         .navigationBarsPadding()
                         .padding(bottom = 24.dp, start = 24.dp, end = 24.dp)
                         .background(p.surface, RoundedCornerShape(12.dp))

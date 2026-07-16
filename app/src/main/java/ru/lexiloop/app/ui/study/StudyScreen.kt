@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -57,7 +56,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -67,7 +66,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.animation.animateColorAsState
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
 import ru.lexiloop.app.data.api.FlashcardDto
 import ru.lexiloop.app.data.api.JudgeResponse
 import ru.lexiloop.app.data.repo.CardImages
@@ -93,6 +91,9 @@ fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
     val swipeScope = rememberCoroutineScope()
     val swipeOffset = remember { Animatable(0f) }
     var cardWidth by remember { mutableStateOf(0) }
+
+    // Like the site, (re)entering the page starts a fresh due round.
+    LaunchedEffect(Unit) { viewModel.onPageShown() }
 
     if (state.loading && state.session == null) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -348,60 +349,91 @@ fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
             }
             Box(Modifier.fillMaxWidth().height(1.dp).background(p.border))
 
-            // .study-prompt
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 34.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                if (session.showImages && card.hasImage) {
-                    AsyncImage(
-                        model = CardImages.imageUrl(card),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(16f / 9f)
-                            .clip(RoundedCornerShape(14.dp)),
+            // .study-prompt — the image emerges full-bleed behind the prompt
+            // with the configured reveal animation, like the site's mobile UI.
+            val prefs by viewModel.studyPrefs.collectAsStateWithLifecycle()
+            val wantsImage = prefs.imagesEnabledFor(state.direction) && card.hasImage
+            var visualShowing by remember(card.id, card.imageKey) { mutableStateOf(false) }
+            val overImage = wantsImage && visualShowing
+            Box(Modifier.fillMaxWidth().clipToBounds()) {
+                if (wantsImage) {
+                    val animation = RevealAnimations.forCard(card.id, prefs.imageAnimations)
+                    PromptVisual(
+                        thumbUrl = CardImages.imageUrl(card.id, card.imageKey, thumb = true),
+                        fullUrl = CardImages.imageUrl(card.id, card.imageKey),
+                        animation = animation,
+                        durationSeconds = RevealAnimations.durationSeconds(
+                            animation,
+                            prefs.imageAnimationDurations,
+                        ),
+                        onVisible = { visualShowing = it },
+                        modifier = Modifier.matchParentSize(),
                     )
-                    Spacer(Modifier.height(20.dp))
                 }
-                Text(
-                    session.prompt.orEmpty(),
-                    fontFamily = Manrope,
-                    fontSize = if (state.showsTerm) 32.sp else 22.sp,
-                    lineHeight = if (state.showsTerm) 38.sp else 30.sp,
-                    fontWeight = FontWeight.W700,
-                    color = p.text,
-                    textAlign = TextAlign.Center,
-                )
-                if (state.showsTerm && card.ipa.isNotEmpty()) {
-                    Spacer(Modifier.height(10.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("/${card.ipa}/", fontSize = 16.sp, color = p.muted)
-                        Icon(
-                            Icons.AutoMirrored.Filled.VolumeUp,
-                            contentDescription = "Pronounce",
-                            tint = p.primary2,
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clickable { viewModel.pronounce(card.term) },
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 34.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    // .study-prompt.has-image .prompt-content: white + shadow
+                    val promptShadow = if (overImage) {
+                        androidx.compose.material3.LocalTextStyle.current.copy(
+                            shadow = androidx.compose.ui.graphics.Shadow(
+                                color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.55f),
+                                offset = androidx.compose.ui.geometry.Offset(0f, 2f),
+                                blurRadius = 22f,
+                            ),
+                        )
+                    } else {
+                        androidx.compose.material3.LocalTextStyle.current
+                    }
+                    Text(
+                        session.prompt.orEmpty(),
+                        fontFamily = Manrope,
+                        fontSize = if (state.showsTerm) 32.sp else 22.sp,
+                        lineHeight = if (state.showsTerm) 38.sp else 30.sp,
+                        fontWeight = FontWeight.W700,
+                        color = if (overImage) androidx.compose.ui.graphics.Color.White else p.text,
+                        textAlign = TextAlign.Center,
+                        style = promptShadow,
+                    )
+                    if (state.showsTerm && card.ipa.isNotEmpty()) {
+                        Spacer(Modifier.height(10.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                "/${card.ipa}/",
+                                fontSize = 16.sp,
+                                color = if (overImage) {
+                                    androidx.compose.ui.graphics.Color.White.copy(alpha = 0.82f)
+                                } else {
+                                    p.muted
+                                },
+                                style = promptShadow,
+                            )
+                            Icon(
+                                Icons.AutoMirrored.Filled.VolumeUp,
+                                contentDescription = "Pronounce",
+                                tint = if (overImage) androidx.compose.ui.graphics.Color.White else p.primary2,
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clickable { viewModel.pronounce(card.term) },
+                            )
+                        }
+                    }
+                    if (state.showsTerm && card.partOfSpeech.isNotEmpty()) {
+                        Spacer(Modifier.height(13.dp))
+                        PosTag(card.partOfSpeech, overImage = overImage)
+                    }
+                    if (!state.showsTerm) {
+                        Spacer(Modifier.height(24.dp))
+                        RecallHints(
+                            card = card,
+                            revealed = state.hintLetters,
+                            answered = answered,
+                            onReveal = viewModel::revealHintLetter,
                         )
                     }
-                }
-                if (state.showsTerm && card.partOfSpeech.isNotEmpty()) {
-                    Spacer(Modifier.height(13.dp))
-                    PosTag(card.partOfSpeech)
-                }
-                if (!state.showsTerm) {
-                    Spacer(Modifier.height(24.dp))
-                    RecallHints(
-                        card = card,
-                        revealed = state.hintLetters,
-                        answered = answered,
-                        onReveal = viewModel::revealHintLetter,
-                    )
                 }
             }
 
@@ -428,6 +460,7 @@ fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
                             else -> "A clear paraphrase is enough…"
                         },
                         minHeight = 115,
+                        onSubmit = viewModel::checkAnswer,
                     )
                     Spacer(Modifier.height(12.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -514,16 +547,21 @@ private fun QueueChip(text: String, color: androidx.compose.ui.graphics.Color) {
 }
 
 @Composable
-private fun PosTag(text: String) {
+private fun PosTag(text: String, overImage: Boolean = false) {
     val p = LocalPalette.current
+    val white = androidx.compose.ui.graphics.Color.White
     Text(
         text.uppercase(),
         modifier = Modifier
-            .border(1.dp, p.border2, RoundedCornerShape(6.dp))
+            .border(
+                1.dp,
+                if (overImage) white.copy(alpha = 0.4f) else p.border2,
+                RoundedCornerShape(6.dp),
+            )
             .padding(horizontal = 6.dp, vertical = 3.dp),
         fontSize = 10.sp,
         letterSpacing = 0.6.sp,
-        color = p.muted,
+        color = if (overImage) white.copy(alpha = 0.85f) else p.muted,
     )
 }
 

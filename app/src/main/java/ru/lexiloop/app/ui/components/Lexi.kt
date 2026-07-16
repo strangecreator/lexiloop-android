@@ -211,6 +211,7 @@ fun LexiTextArea(
     modifier: Modifier = Modifier,
     placeholder: String = "",
     minHeight: Int = 100,
+    onSubmit: (() -> Unit)? = null,
 ) {
     LexiTextField(
         value = value,
@@ -219,6 +220,18 @@ fun LexiTextArea(
         placeholder = placeholder,
         singleLine = false,
         minHeight = minHeight,
+        // Enter on the soft keyboard submits instead of inserting a newline,
+        // matching the site where Enter checks the answer.
+        keyboardOptions = if (onSubmit != null) {
+            KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Send)
+        } else {
+            KeyboardOptions.Default
+        },
+        keyboardActions = if (onSubmit != null) {
+            KeyboardActions(onSend = { onSubmit() })
+        } else {
+            KeyboardActions.Default
+        },
     )
 }
 

@@ -198,12 +198,18 @@ class ContentRepository @Inject constructor(
 
     // --- Study ---
 
-    suspend fun nextCard(pool: Int?, mode: String, excludeIds: List<Int>): ApiResult<NextCardResponse> =
+    suspend fun nextCard(
+        pool: Int?,
+        mode: String,
+        excludeIds: List<Int>,
+        prefetch: Int? = null,
+    ): ApiResult<NextCardResponse> =
         safeApi {
             api.nextCard(
                 pool = pool,
                 mode = mode,
                 exclude = excludeIds.takeIf { it.isNotEmpty() }?.joinToString(","),
+                prefetch = prefetch,
             )
         }
 

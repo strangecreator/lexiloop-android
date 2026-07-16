@@ -12,6 +12,8 @@ import ru.lexiloop.app.data.api.SettingsDto
 import ru.lexiloop.app.data.api.SettingsWriteBody
 import ru.lexiloop.app.data.repo.ApiResult
 import ru.lexiloop.app.data.repo.ContentRepository
+import ru.lexiloop.app.data.repo.DeviceOverrides
+import ru.lexiloop.app.data.repo.DevicePrefs
 import ru.lexiloop.app.data.repo.SettingsStore
 import ru.lexiloop.app.data.repo.ToastBus
 import javax.inject.Inject
@@ -30,7 +32,7 @@ class SettingsViewModel @Inject constructor(
     private val repository: ContentRepository,
     private val settingsStore: SettingsStore,
     private val toastBus: ToastBus,
-    private val devicePrefs: ru.lexiloop.app.data.repo.DevicePrefs,
+    private val devicePrefs: DevicePrefs,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SettingsUiState(form = settingsStore.settings.value))
@@ -38,7 +40,33 @@ class SettingsViewModel @Inject constructor(
 
     val fontScale: StateFlow<Float> = devicePrefs.fontScale
 
+    /** Device-local study/appearance preferences, applied immediately. */
+    val overrides: StateFlow<DeviceOverrides> = devicePrefs.overrides
+
     fun setFontScale(value: Float) = devicePrefs.setFontScale(value)
+
+    fun setAccentColor(value: String) = devicePrefs.setAccentColor(value)
+
+    fun setShowCardImages(value: Boolean) = devicePrefs.setShowCardImages(value)
+
+    fun setShowImagesTermToDefinition(value: Boolean) =
+        devicePrefs.setShowImagesTermToDefinition(value)
+
+    fun setShowImagesDefinitionToTerm(value: Boolean) =
+        devicePrefs.setShowImagesDefinitionToTerm(value)
+
+    fun setShowImagesTermToSentence(value: Boolean) =
+        devicePrefs.setShowImagesTermToSentence(value)
+
+    fun setImagePrefetchCount(value: Int) = devicePrefs.setImagePrefetchCount(value)
+
+    fun setImageAnimations(names: List<String>) = devicePrefs.setImageAnimations(names)
+
+    fun setImageAnimationDuration(name: String, seconds: Double) =
+        devicePrefs.setImageAnimationDuration(name, seconds)
+
+    fun setTimingBand(direction: String, easy: Int, good: Int) =
+        devicePrefs.setTimingBand(direction, easy, good)
 
     init {
         viewModelScope.launch {
@@ -76,16 +104,10 @@ class SettingsViewModel @Inject constructor(
         val f = current.form
         val body = SettingsWriteBody(
             theme = f.theme,
-            accentColor = f.accentColor,
             studyDirections = f.studyDirections,
             generationModel = f.generationModel,
             judgeModel = f.judgeModel,
             imageModel = f.imageModel,
-            showCardImages = f.showCardImages,
-            showImagesTermToDefinition = f.showImagesTermToDefinition,
-            showImagesDefinitionToTerm = f.showImagesDefinitionToTerm,
-            showImagesTermToSentence = f.showImagesTermToSentence,
-            imagePrefetchCount = f.imagePrefetchCount,
             judgeAcceptanceScore = f.judgeAcceptanceScore,
             sentenceJudgeModel = f.sentenceJudgeModel,
             sentenceAcceptanceScore = f.sentenceAcceptanceScore,
@@ -98,12 +120,6 @@ class SettingsViewModel @Inject constructor(
             hardMultiplier = f.hardMultiplier,
             lapseMultiplier = f.lapseMultiplier,
             minimumEase = f.minimumEase,
-            termToDefinitionEasySeconds = f.termToDefinitionEasySeconds,
-            termToDefinitionGoodSeconds = f.termToDefinitionGoodSeconds,
-            definitionToTermEasySeconds = f.definitionToTermEasySeconds,
-            definitionToTermGoodSeconds = f.definitionToTermGoodSeconds,
-            termToSentenceEasySeconds = f.termToSentenceEasySeconds,
-            termToSentenceGoodSeconds = f.termToSentenceGoodSeconds,
             providerTokens = current.stagedTokens.takeIf { it.isNotEmpty() },
         )
         viewModelScope.launch {
