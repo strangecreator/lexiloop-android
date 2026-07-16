@@ -88,6 +88,7 @@ import ru.lexiloop.app.ui.theme.Manrope
 fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
     val p = LocalPalette.current
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val prefs by viewModel.studyPrefs.collectAsStateWithLifecycle()
     val padding = pagePadding()
 
     // Swipe-to-advance state: hoisted above the early returns so remember
@@ -170,13 +171,16 @@ fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            // imePadding must sit OUTSIDE verticalScroll: it shrinks the
-            // scroll viewport to the area above the keyboard, which is what
-            // lets bringIntoView place the answer box right above the IME.
-            // Inside the scrollable it only grows the content, and the field
-            // counts as "visible" while actually sitting behind the keyboard.
-            .imePadding()
+            // Scroll-to-answer on: imePadding OUTSIDE verticalScroll shrinks
+            // the scroll viewport to the area above the keyboard, which is
+            // what makes the focused answer box scroll into view (Compose's
+            // built-in text-field behavior plus the explicit request below).
+            // Off: the padding sits inside the scrollable, so the viewport
+            // keeps its size, nothing auto-scrolls, and the extra content
+            // padding still lets the user scroll past the keyboard manually.
+            .then(if (prefs.scrollToAnswerBox) Modifier.imePadding() else Modifier)
             .verticalScroll(rememberScrollState())
+            .then(if (prefs.scrollToAnswerBox) Modifier else Modifier.imePadding())
             .padding(padding),
     ) {
         // .study-progress
@@ -362,7 +366,6 @@ fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
 
             // .study-prompt — the image emerges full-bleed behind the prompt
             // with the configured reveal animation, like the site's mobile UI.
-            val prefs by viewModel.studyPrefs.collectAsStateWithLifecycle()
             val wantsImage = prefs.imagesEnabledFor(state.direction) && card.hasImage
             var visualShowing by remember(card.id, card.imageKey) { mutableStateOf(false) }
             val overImage = wantsImage && visualShowing
@@ -566,43 +569,31 @@ fun StudyScreen(viewModel: StudyViewModel = hiltViewModel()) {
 }
 
 /**
- * The site's `.card-topline.task-*` texture: wide soft diagonal bands in the
- * border tone. Word → sentence slopes one way, definition → word the other,
- * and word → definition stays plain — texture instead of color, so it is
- * visible at a glance without shouting.
+ * The site's `.card-topline.task-term_to_sentence` texture: wide soft
+ * diagonal bands in the border tone (the CSS 135° repeating gradient).
+ * Only the sentence task carries the tape; the other tasks stay plain —
+ * texture instead of color, visible at a glance without shouting.
  */
 private fun Modifier.taskTape(direction: String, color: androidx.compose.ui.graphics.Color): Modifier =
-    when (direction) {
-        "term_to_sentence" -> tapeBands(color, mirrored = false)
-        "definition_to_term" -> tapeBands(color, mirrored = true)
-        else -> this
-    }
-
-private fun Modifier.tapeBands(color: androidx.compose.ui.graphics.Color, mirrored: Boolean): Modifier =
-    // The angled strokes overshoot the strip's edges; keep them inside like a
-    // CSS background.
-    clipToBounds().drawBehind {
-        val band = 9.dp.toPx()
-        // 18dp perpendicular pitch, converted to x-spacing for 45° lines.
-        val pitch = 18.dp.toPx() * 1.4142135f
-        var x = -size.height
-        while (x < size.width + size.height) {
-            if (mirrored) {
-                drawLine(
-                    color,
-                    start = androidx.compose.ui.geometry.Offset(x, 0f),
-                    end = androidx.compose.ui.geometry.Offset(x + size.height, size.height),
-                    strokeWidth = band,
-                )
-            } else {
+    if (direction != "term_to_sentence") {
+        this
+    } else {
+        // The angled strokes overshoot the strip's edges; keep them inside
+        // like a CSS background.
+        clipToBounds().drawBehind {
+            val band = 9.dp.toPx()
+            // 18dp perpendicular pitch, converted to x-spacing for 45° lines.
+            val pitch = 18.dp.toPx() * 1.4142135f
+            var x = -size.height
+            while (x < size.width + size.height) {
                 drawLine(
                     color,
                     start = androidx.compose.ui.geometry.Offset(x, size.height),
                     end = androidx.compose.ui.geometry.Offset(x + size.height, 0f),
                     strokeWidth = band,
                 )
+                x += pitch
             }
-            x += pitch
         }
     }
 

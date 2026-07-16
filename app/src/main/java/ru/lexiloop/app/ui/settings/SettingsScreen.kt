@@ -399,7 +399,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                     Column(Modifier.weight(1f)) {
                         Text("Scroll to the answer box", fontSize = 13.sp, fontWeight = FontWeight.W600, color = p.muted)
                         Text(
-                            "When the keyboard opens on the Study page, the answer box moves into view. Stored on this device.",
+                            "When the keyboard opens on the Study page, the answer box moves into view.",
                             fontSize = 11.sp,
                             color = p.muted2,
                         )
