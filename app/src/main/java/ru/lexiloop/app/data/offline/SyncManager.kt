@@ -48,6 +48,15 @@ class SyncManager @Inject constructor(
     private val _syncing = MutableStateFlow(false)
     val syncing: StateFlow<Boolean> = _syncing
 
+    /**
+     * Bumped after every finished sync pass (reviews replayed, cache
+     * refreshed). Screens showing offline-derived data reload on it so queue
+     * counts match the server as soon as the replay lands, not only after an
+     * app restart.
+     */
+    private val _completedSyncs = MutableStateFlow(0L)
+    val completedSyncs: StateFlow<Long> = _completedSyncs
+
     /** Begins watching connectivity; safe to call more than once. */
     fun start() {
         if (!started.compareAndSet(false, true)) return
@@ -67,6 +76,7 @@ class SyncManager @Inject constructor(
             pushPendingSettings()
             replayPendingReviews()
             refreshCache()
+            _completedSyncs.value += 1
         } finally {
             _syncing.value = false
             syncMutex.unlock()

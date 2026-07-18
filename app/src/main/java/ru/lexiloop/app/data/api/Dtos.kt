@@ -57,6 +57,7 @@ data class ScheduleDto(
     @SerialName("due_at") val dueAt: String? = null,
     @SerialName("interval_days") val intervalDays: Double = 0.0,
     @SerialName("ease_factor") val easeFactor: Double = 2.5,
+    @SerialName("step_index") val stepIndex: Int = 0,
     val repetitions: Int = 0,
     val lapses: Int = 0,
     @SerialName("last_reviewed_at") val lastReviewedAt: String? = null,
@@ -192,6 +193,8 @@ data class JudgeResponse(
     val accepted: Boolean = false,
     // Since v1.13 the judge endpoint saves the review in the same request.
     @SerialName("review_recorded") val reviewRecorded: Boolean = false,
+    // The recorded review (with the card's fresh schedule) when it was saved.
+    val review: ReviewResponse? = null,
 )
 
 @Serializable
@@ -218,9 +221,17 @@ data class ReviewScheduleDto(
     @SerialName("due_at") val dueAt: String? = null,
     @SerialName("interval_days") val intervalDays: Double = 0.0,
     @SerialName("ease_factor") val easeFactor: Double = 2.5,
+    @SerialName("step_index") val stepIndex: Int = 0,
     val repetitions: Int = 0,
     val lapses: Int = 0,
-)
+) {
+    /** The card-cache representation, used to keep offline schedules fresh. */
+    fun toScheduleDto(lastReviewedAt: String? = null): ScheduleDto = ScheduleDto(
+        state = state, dueAt = dueAt, intervalDays = intervalDays,
+        easeFactor = easeFactor, stepIndex = stepIndex,
+        repetitions = repetitions, lapses = lapses, lastReviewedAt = lastReviewedAt,
+    )
+}
 
 @Serializable
 data class ReviewResponse(
@@ -241,6 +252,9 @@ data class OverviewResponse(
     @SerialName("total_cards") val totalCards: Int = 0,
     @SerialName("due_now") val dueNow: Int = 0,
     @SerialName("new_cards") val newCards: Int = 0,
+    // How many new cards the server introduced today, so the offline queue
+    // can respect the remaining daily new-card allowance.
+    @SerialName("new_introduced_today") val newIntroducedToday: Int = 0,
     @SerialName("reviews_today") val reviewsToday: Int = 0,
     val retention: Double = 0.0,
     val streak: Int = 0,

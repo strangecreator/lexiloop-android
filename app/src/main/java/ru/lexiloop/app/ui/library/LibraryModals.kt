@@ -280,7 +280,9 @@ fun BulkModal(state: BulkUiState, viewModel: LibraryViewModel) {
             ) {
                 Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = p.primary2, modifier = Modifier.size(17.dp))
                 Text(
-                    "Infinitive to, part-of-speech labels, duplicate grammatical variants, and list separators will be cleaned first.",
+                    "Infinitive to, duplicates, and list separators are cleaned first. Part-of-speech labels like (v) or " +
+                        "(n / adj) are kept: they make the card target that sense, so the same word with different labels " +
+                        "becomes separate cards.",
                     fontSize = 12.sp,
                     lineHeight = 18.sp,
                     color = p.muted,

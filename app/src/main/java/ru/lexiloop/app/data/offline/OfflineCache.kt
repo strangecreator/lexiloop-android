@@ -31,7 +31,14 @@ data class PendingReview(
     @SerialName("card_id") val cardId: Int,
     val request: ReviewRequest,
     @SerialName("queued_at") val queuedAt: Long,
+    // The card's schedule state when the review was made. "new" marks the
+    // review as introducing a new card, which counts against the daily limit.
+    @SerialName("previous_state") val previousState: String = "",
 )
+
+/** When the overview snapshot was stored, so day-scoped counters can expire. */
+@Serializable
+data class OverviewMeta(@SerialName("saved_at") val savedAt: Long)
 
 /**
  * File-backed JSON cache: the full flashcard set (per pool), pools, settings,
@@ -60,8 +67,13 @@ class OfflineCache @Inject constructor(
     suspend fun saveSettings(settings: SettingsDto) = write("settings.json", settings)
     suspend fun loadSettings(): SettingsDto? = read("settings.json")
 
-    suspend fun saveOverview(overview: OverviewResponse) = write("overview.json", overview)
+    suspend fun saveOverview(overview: OverviewResponse) {
+        write("overview.json", overview)
+        write("overview-meta.json", OverviewMeta(savedAt = System.currentTimeMillis()))
+    }
+
     suspend fun loadOverview(): OverviewResponse? = read("overview.json")
+    suspend fun overviewMeta(): OverviewMeta? = read("overview-meta.json")
 
     suspend fun saveAnalytics(analytics: AnalyticsResponse) = write("analytics.json", analytics)
     suspend fun loadAnalytics(): AnalyticsResponse? = read("analytics.json")
@@ -78,6 +90,16 @@ class OfflineCache @Inject constructor(
             cards + card
         }
         saveCards(card.pool, next)
+    }
+
+    /**
+     * Rewrites one cached card's schedule so the offline study queue keeps
+     * moving cards through learning steps between syncs.
+     */
+    suspend fun updateCardSchedule(pool: Int, cardId: Int, schedule: ru.lexiloop.app.data.api.ScheduleDto) {
+        val cards = loadCards(pool) ?: return
+        if (cards.none { it.id == cardId }) return
+        saveCards(pool, cards.map { if (it.id == cardId) it.copy(schedule = schedule) else it })
     }
 
     suspend fun removeCard(cardId: Int) {

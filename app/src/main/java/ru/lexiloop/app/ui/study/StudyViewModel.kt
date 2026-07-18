@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -19,6 +20,7 @@ import ru.lexiloop.app.data.api.JudgeRequest
 import ru.lexiloop.app.data.api.JudgeResponse
 import ru.lexiloop.app.data.api.NextCardResponse
 import ru.lexiloop.app.data.api.ReviewRequest
+import ru.lexiloop.app.data.offline.OfflineScheduler
 import ru.lexiloop.app.data.repo.ApiResult
 import ru.lexiloop.app.data.repo.CardImages
 import ru.lexiloop.app.data.repo.ContentRepository
@@ -126,7 +128,8 @@ class StudyViewModel @Inject constructor(
     private val toastBus: ToastBus,
     private val offlineCache: ru.lexiloop.app.data.offline.OfflineCache,
     private val networkMonitor: ru.lexiloop.app.data.offline.NetworkMonitor,
-    settingsStore: ru.lexiloop.app.data.repo.SettingsStore,
+    private val syncManager: ru.lexiloop.app.data.offline.SyncManager,
+    private val settingsStore: ru.lexiloop.app.data.repo.SettingsStore,
     private val devicePrefs: ru.lexiloop.app.data.repo.DevicePrefs,
     @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context,
 ) : ViewModel() {
@@ -164,6 +167,21 @@ class StudyViewModel @Inject constructor(
                 }
             }
         }
+        // Reconnecting replays the offline reviews and refreshes the cache;
+        // an offline session on screen is stale the moment that lands. Reload
+        // it unless the user is mid-card, so the queue counts ("839 new")
+        // snap to the server's truth without restarting the app.
+        viewModelScope.launch {
+            syncManager.completedSyncs.drop(1).collect {
+                val current = _state.value
+                val untouched = current.judge == null && !current.revealed &&
+                    current.answer.isBlank() && !current.busy && !current.loading
+                if (current.offline && untouched) {
+                    practiceSeen = mutableListOf()
+                    load(due = !current.practiceMode, resetRound = true)
+                }
+            }
+        }
     }
 
     /**
@@ -192,15 +210,15 @@ class StudyViewModel @Inject constructor(
         }
         viewModelScope.launch {
             val excluded = if (due) emptyList() else practiceSeen.toList()
-            // Only explicit device overrides change how many upcoming images
-            // the server lists and which task types rotate; otherwise the
-            // account settings apply.
+            // Task types are device-local (default: recall only), so the
+            // effective selection always rides along; the prefetch count is
+            // sent only when this device overrides the account.
             val overrides = devicePrefs.overrides.value
             when (
                 val result = repository.nextCard(
                     observedPoolId, mode, excluded,
                     prefetch = overrides.imagePrefetchCount,
-                    directions = overrides.studyDirections,
+                    directions = studyPrefs.value.studyDirections,
                 )
             ) {
                 is ApiResult.Success -> applySession(result.data, due, resetRound, adjustedTotal, offline = false)
@@ -277,7 +295,7 @@ class StudyViewModel @Inject constructor(
                 if (due) "due" else "practice",
                 excluded,
                 prefetch = overrides.imagePrefetchCount,
-                directions = overrides.studyDirections,
+                directions = studyPrefs.value.studyDirections,
             )
             if (result is ApiResult.Success) {
                 nextSession = result.data
@@ -317,36 +335,37 @@ class StudyViewModel @Inject constructor(
     }
 
     /**
-     * Builds a Definition → word session from the local card cache. Cards
-     * whose offline reviews are still queued stay out of the due queue.
+     * Builds a Definition → word session from the local card cache using the
+     * same queue rules as the server: cards reviewed offline are rescheduled
+     * locally (so learning steps come back within the session instead of
+     * disappearing), and the daily new-card limit is honored using the last
+     * synced count of new cards introduced today plus the ones introduced
+     * offline since.
      */
     private suspend fun offlineSession(due: Boolean, excluded: List<Int>): NextCardResponse? {
         val poolId = observedPoolId ?: return null
         val cards = offlineCache.loadCards(poolId) ?: return null
-        val pendingIds = offlineCache.pendingReviews()
-            .filter { !it.request.practice }
-            .map { it.cardId }
-            .toSet()
         val available = cards.filter { !it.suspended }
         val now = System.currentTimeMillis()
 
-        fun dueAtMillis(card: FlashcardDto): Long? =
-            card.schedule?.dueAt?.let(::parseInstantMillis)
+        fun state(card: FlashcardDto): String = card.schedule?.state ?: "new"
 
-        fun isNew(card: FlashcardDto): Boolean =
-            card.schedule == null || card.schedule.state == "new"
+        fun dueAtMillis(card: FlashcardDto): Long? =
+            OfflineScheduler.parseInstantMillis(card.schedule?.dueAt)
 
         val queue = if (due) {
-            available
-                .filter { card ->
-                    card.id !in pendingIds && (isNew(card) || (dueAtMillis(card)?.let { it <= now } ?: false))
-                }
-                .sortedWith(
-                    compareBy(
-                        { if (isNew(it)) 1 else 0 },
-                        { dueAtMillis(it) ?: Long.MAX_VALUE },
-                    ),
-                )
+            val dueCards = available.filter { card ->
+                card.schedule == null || (dueAtMillis(card)?.let { it <= now } ?: true)
+            }
+            val scheduled = dueCards.filter { state(it) != "new" }
+            val newLimit = offlineRemainingNewSlots(now)
+            val cappedNew = dueCards.filter { state(it) == "new" }
+                .sortedWith(compareBy({ dueAtMillis(it) ?: Long.MAX_VALUE }, { it.id }))
+                .take(newLimit)
+            (scheduled + cappedNew).sortedWith(
+                compareByDescending<FlashcardDto> { OfflineScheduler.stateRank(state(it)) }
+                    .thenByDescending { OfflineScheduler.priority(it.schedule, now) },
+            )
         } else {
             available.filterNot { it.id in excluded }
         }
@@ -361,19 +380,36 @@ class StudyViewModel @Inject constructor(
             practiceComplete = !due && card == null,
             queueCount = queue.size,
             queueBreakdown = ru.lexiloop.app.data.api.QueueBreakdownDto(
-                new = queue.count { isNew(it) },
-                learning = queue.count { it.schedule?.state == "learning" || it.schedule?.state == "relearning" },
-                review = queue.count { it.schedule?.state == "review" },
+                new = queue.count { state(it) == "new" },
+                learning = queue.count { state(it) == "learning" || state(it) == "relearning" },
+                review = queue.count { state(it) == "review" },
             ),
             showImages = false,
         )
     }
 
-    private fun parseInstantMillis(value: String): Long? = runCatching {
-        java.time.OffsetDateTime.parse(value).toInstant().toEpochMilli()
-    }.recoverCatching {
-        java.time.Instant.parse(value).toEpochMilli()
-    }.getOrNull()
+    /** daily_new_limit minus introductions the server knows about (when the
+     * overview snapshot is from today) minus introductions made offline today. */
+    private suspend fun offlineRemainingNewSlots(now: Long): Int {
+        val limit = settingsStore.settings.value.dailyNewLimit
+        val meta = offlineCache.overviewMeta()
+        val overview = offlineCache.loadOverview()
+        val serverIntroduced = if (overview != null && meta != null && isSameLocalDay(meta.savedAt, now)) {
+            overview.newIntroducedToday
+        } else {
+            0
+        }
+        val offlineIntroduced = offlineCache.pendingReviews().count {
+            !it.request.practice && it.previousState == "new" && isSameLocalDay(it.queuedAt, now)
+        }
+        return (limit - serverIntroduced - offlineIntroduced).coerceAtLeast(0)
+    }
+
+    private fun isSameLocalDay(first: Long, second: Long): Boolean {
+        val zone = java.time.ZoneId.systemDefault()
+        return java.time.Instant.ofEpochMilli(first).atZone(zone).toLocalDate() ==
+            java.time.Instant.ofEpochMilli(second).atZone(zone).toLocalDate()
+    }
 
     /** Exact-match answer check used when the LLM judge is unreachable. */
     private fun offlineAnswerMatches(card: FlashcardDto, answer: String): Boolean {
@@ -413,8 +449,37 @@ class StudyViewModel @Inject constructor(
                     goodSeconds = timing?.second,
                 ),
                 queuedAt = System.currentTimeMillis(),
+                previousState = card.schedule?.state ?: "new",
             ),
         )
+        // Mirror the server's rescheduling on the cached copy so the offline
+        // queue behaves like real study: a failed card returns in a learning
+        // step, a passed one leaves for its next interval. The replay on
+        // reconnect makes the server's schedule authoritative again.
+        if (!current.practiceMode) {
+            val prefs = studyPrefs.value
+            val (easySeconds, goodSeconds) = when (current.direction) {
+                "definition_to_term" -> prefs.definitionToTermEasySeconds to prefs.definitionToTermGoodSeconds
+                "term_to_sentence" -> prefs.termToSentenceEasySeconds to prefs.termToSentenceGoodSeconds
+                else -> prefs.termToDefinitionEasySeconds to prefs.termToDefinitionGoodSeconds
+            }
+            val rating = OfflineScheduler.automaticRating(
+                accepted = judged?.accepted ?: false,
+                responseMs = measured,
+                easySeconds = easySeconds,
+                goodSeconds = goodSeconds,
+                isDefinitionToTerm = current.direction == "definition_to_term",
+                hintRevealedLetters = current.hintLetters,
+                hintTotalLetters = Recall.letterCount(card.term),
+            )
+            val schedule = OfflineScheduler.applyRating(
+                card.schedule ?: ru.lexiloop.app.data.api.ScheduleDto(),
+                rating,
+                settingsStore.settings.value,
+                System.currentTimeMillis(),
+            )
+            offlineCache.updateCardSchedule(card.pool, card.id, schedule)
+        }
     }
 
     private suspend fun offlineCheck(card: FlashcardDto, current: StudyUiState, measured: Long) {
@@ -480,6 +545,9 @@ class StudyViewModel @Inject constructor(
                 is ApiResult.Success -> {
                     val judged = result.data
                     if (judged.reviewRecorded) {
+                        judged.review?.schedule?.let { fresh ->
+                            cacheFreshSchedule(card, fresh)
+                        }
                         markReviewed(card.id)
                         _state.update { it.copy(busy = false, judge = judged) }
                         schedulePrefetchNextSession()
@@ -550,6 +618,7 @@ class StudyViewModel @Inject constructor(
         }
         return when (result) {
             is ApiResult.Success -> {
+                result.data.schedule?.let { fresh -> cacheFreshSchedule(card, fresh) }
                 markReviewed(card.id)
                 true
             }
@@ -565,6 +634,19 @@ class StudyViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    /**
+     * Keeps the offline card cache aligned with online progress, so a
+     * connection dropping mid-session doesn't resurrect cards that were
+     * already studied minutes earlier.
+     */
+    private suspend fun cacheFreshSchedule(card: FlashcardDto, fresh: ru.lexiloop.app.data.api.ReviewScheduleDto) {
+        offlineCache.updateCardSchedule(
+            card.pool,
+            card.id,
+            fresh.toScheduleDto(lastReviewedAt = java.time.Instant.now().toString()),
+        )
     }
 
     private fun markReviewed(cardId: Int) {

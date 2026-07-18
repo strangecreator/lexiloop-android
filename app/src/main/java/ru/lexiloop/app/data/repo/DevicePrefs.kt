@@ -88,7 +88,11 @@ data class EffectiveStudyPrefs(
 fun resolveStudyPrefs(server: SettingsDto, device: DeviceOverrides): EffectiveStudyPrefs =
     EffectiveStudyPrefs(
         accentColor = device.accentColor ?: server.accentColor,
-        studyDirections = device.studyDirections ?: server.studyDirections,
+        // Task types deliberately do NOT follow the account: on a phone the
+        // default is recall only (Definition → word), because typing full
+        // definitions and sentences is slow on a touch keyboard. Checking
+        // boxes in the app's Settings still overrides this per device.
+        studyDirections = device.studyDirections ?: DevicePrefs.DEFAULT_STUDY_DIRECTIONS,
         showCardImages = device.showCardImages ?: server.showCardImages,
         showImagesTermToDefinition = device.showImagesTermToDefinition
             ?: server.showImagesTermToDefinition,
@@ -150,9 +154,9 @@ class DevicePrefs @Inject constructor(
     private val scrollToAnswerKey = booleanPreferencesKey("device_scroll_to_answer")
 
     val fontScale: StateFlow<Float> = dataStore.data
-        .map { it[fontScaleKey] ?: DEFAULT_FONT_SCALE }
-        .catch { emit(DEFAULT_FONT_SCALE) }
-        .stateIn(scope, SharingStarted.Eagerly, DEFAULT_FONT_SCALE)
+        .map { it[fontScaleKey] ?: FALLBACK_FONT_SCALE }
+        .catch { emit(FALLBACK_FONT_SCALE) }
+        .stateIn(scope, SharingStarted.Eagerly, FALLBACK_FONT_SCALE)
 
     val overrides: StateFlow<DeviceOverrides> = dataStore.data
         .map { prefs ->
@@ -286,11 +290,17 @@ class DevicePrefs @Inject constructor(
     companion object {
         const val DEFAULT_FONT_SCALE = 1.06f
 
+        // "Large" is what a fresh install uses until the user picks a size.
+        const val FALLBACK_FONT_SCALE = 1.18f
+
         val TEXT_SCALES = listOf(
             "Compact" to 0.95f,
             "Default" to DEFAULT_FONT_SCALE,
-            "Large" to 1.18f,
+            "Large" to FALLBACK_FONT_SCALE,
             "Extra large" to 1.30f,
         )
+
+        /** The app's out-of-the-box task-type selection (device-local). */
+        val DEFAULT_STUDY_DIRECTIONS = listOf("definition_to_term")
     }
 }

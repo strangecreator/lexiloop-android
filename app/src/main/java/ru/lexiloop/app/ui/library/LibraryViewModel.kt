@@ -93,7 +93,8 @@ class LibraryViewModel @Inject constructor(
 
     val activePool: PoolDto? get() = poolStore.activePool
 
-    fun onTermChange(value: String) = _state.update { it.copy(term = value) }
+    // The server accepts free-form generation requests up to 1000 characters.
+    fun onTermChange(value: String) = _state.update { it.copy(term = value.take(1000)) }
 
     fun onSearchChange(value: String) {
         _state.update { it.copy(search = value) }

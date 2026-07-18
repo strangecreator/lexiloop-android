@@ -116,7 +116,9 @@ fun LibraryScreen(viewModel: LibraryViewModel = hiltViewModel()) {
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "Definition, IPA, forms, examples, synonyms, collocations, and usage notes are generated automatically.",
+                    "Definition, IPA, forms, examples, synonyms, collocations, and usage notes are generated automatically. " +
+                        "Add a part of speech or a short note — “bark (verb)”, “bark — the sound a dog makes” — to target " +
+                        "one sense; a bare word covers all its prominent meanings.",
                     fontSize = 14.sp,
                     lineHeight = 20.sp,
                     color = p.muted,
@@ -125,7 +127,7 @@ fun LibraryScreen(viewModel: LibraryViewModel = hiltViewModel()) {
                 LexiTextField(
                     value = state.term,
                     onValueChange = viewModel::onTermChange,
-                    placeholder = "Type a word or collocation…",
+                    placeholder = "Type a word or collocation… e.g. “bark (verb)”",
                     minHeight = 50,
                 )
                 Spacer(Modifier.height(9.dp))
